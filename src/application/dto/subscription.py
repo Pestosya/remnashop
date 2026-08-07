@@ -7,6 +7,7 @@ from remnapy.enums import TrafficLimitStrategy
 
 from src.core.constants import UNLIMITED_EXPIRE_YEAR
 from src.core.enums import PlanType, SubscriptionStatus
+from src.core.exceptions import SubscriptionNotLinkedError
 from src.core.types import RemnaUserDto
 from src.core.utils.converters import bytes_to_gb
 from src.core.utils.time import datetime_now
@@ -23,7 +24,7 @@ class SquadInfoDto:
 
 @dataclass(kw_only=True)
 class RemnaSubscriptionDto:
-    uuid: UUID
+    user_remna_id: int
     status: SubscriptionStatus
     expire_at: datetime
     url: str
@@ -39,7 +40,7 @@ class RemnaSubscriptionDto:
     @classmethod
     def from_remna_user(cls, remna_user: RemnaUserDto) -> "RemnaSubscriptionDto":
         return cls(
-            uuid=remna_user.uuid,
+            user_remna_id=remna_user.id,
             status=SubscriptionStatus(remna_user.status),
             expire_at=remna_user.expire_at,
             url=remna_user.subscription_url,
@@ -55,7 +56,10 @@ class RemnaSubscriptionDto:
 @dataclass(kw_only=True)
 class SubscriptionDto(BaseDto, TrackableMixin, TimestampMixin):
     user_id: int = 0
-    user_remna_id: UUID
+    # Panel user id; `None` for rows created against a panel <3.0 that have not
+    # been re-linked yet. Use `remna_id` when calling the panel.
+    user_remna_id: Optional[int] = None
+    remna_uuid: Optional[UUID] = None
 
     status: SubscriptionStatus = SubscriptionStatus.ACTIVE
     is_trial: bool = False
@@ -77,6 +81,21 @@ class SubscriptionDto(BaseDto, TrackableMixin, TimestampMixin):
     device_single_reset_at: Optional[datetime] = None
     device_all_reset_at: Optional[datetime] = None
     link_reset_at: Optional[datetime] = None
+
+    @property
+    def remna_id(self) -> int:
+        """Panel user id, for calls that must target the panel.
+
+        Raises instead of silently addressing the wrong user when the row has
+        not been re-linked after the 3.x upgrade.
+        """
+        if self.user_remna_id is None:
+            raise SubscriptionNotLinkedError(self.id)
+        return self.user_remna_id
+
+    @property
+    def is_linked(self) -> bool:
+        return self.user_remna_id is not None
 
     @property
     def is_active(self) -> bool:

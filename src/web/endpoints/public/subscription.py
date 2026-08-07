@@ -142,10 +142,14 @@ async def get_current_subscription(
     if not current_subscription:
         return None
 
-    remna_user = await remnawave.get_user_by_uuid(current_subscription.user_remna_id)
+    remna_user = (
+        await remnawave.get_user_by_id(current_subscription.remna_id)
+        if current_subscription.is_linked
+        else None
+    )
 
     return SubscriptionInfoResponse(
-        user_remna_id=str(current_subscription.user_remna_id),
+        user_remna_id=str(current_subscription.user_remna_id or ""),
         status=current_subscription.current_status.value,
         is_trial=current_subscription.is_trial,
         traffic_limit=current_subscription.traffic_limit,
@@ -172,7 +176,13 @@ async def get_subscription_devices(
     if not current_subscription:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Subscription not found")
 
-    devices = await remnawave.get_devices(current_subscription.user_remna_id)
+    if not current_subscription.is_linked:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Subscription is not linked to the Remnawave panel yet",
+        )
+
+    devices = await remnawave.get_devices(current_subscription.remna_id)
     return DevicesResponse(
         devices=[_to_device_response(device) for device in devices],
         current_count=len(devices),

@@ -22,6 +22,7 @@ from src.application.events import (
 )
 from src.application.events.system import RemnashopWelcomeEvent
 from src.application.use_cases.gateways.commands.payment import CreateDefaultPaymentGateway
+from src.application.use_cases.remnawave.commands.relink import RelinkSubscriptions
 from src.application.use_cases.settings.commands.defaults import CreateDefaultSettings
 from src.core.config import AppConfig
 from src.core.constants import REMNAWAVE_MAX_VERSION
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         webhook_service = await startup_container.get(WebhookService)
         command_service = await startup_container.get(CommandService)
         remnawave_service = await startup_container.get(Remnawave)
+        relink_subscriptions = await startup_container.get(RelinkSubscriptions)
         create_default_payment_gateway = await startup_container.get(CreateDefaultPaymentGateway)
         create_default_settings = await startup_container.get(CreateDefaultSettings)
         redis = await startup_container.get(Redis)
@@ -142,6 +144,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
                     panel_version=str(panel_version),
                 )
             )
+
+        # Subscriptions stored before the 3.x upgrade carry a panel UUID the
+        # API no longer accepts; rebuild the link before serving traffic.
+        await relink_subscriptions.system()
     except Exception as e:
         remnawave_error_event = RemnawaveErrorEvent(**config.build.data, exception=e)
         await event_bus.publish(remnawave_error_event)

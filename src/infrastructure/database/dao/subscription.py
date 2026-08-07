@@ -66,7 +66,7 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         logger.debug(f"Subscription '{subscription_id}' not found")
         return None
 
-    async def get_by_remna_id(self, user_remna_id: UUID) -> Optional[SubscriptionDto]:
+    async def get_by_remna_id(self, user_remna_id: int) -> Optional[SubscriptionDto]:
         stmt = select(Subscription).where(Subscription.user_remna_id == user_remna_id)
         db_subscription = await self.session.scalar(stmt)
 
@@ -156,7 +156,7 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
         logger.warning(f"Failed to update subscription '{subscription_id}': not found")
         return None
 
-    async def exists(self, user_remna_id: UUID) -> bool:
+    async def exists(self, user_remna_id: int) -> bool:
         stmt = select(
             select(Subscription).where(Subscription.user_remna_id == user_remna_id).exists()
         )
@@ -166,6 +166,28 @@ class SubscriptionDaoImpl(SubscriptionDao, BaseDaoImpl):
             f"Subscription existence status for remna ID '{user_remna_id}' is '{is_exists}'"
         )
         return is_exists
+
+    async def get_unlinked(self, limit: int, after_id: int = 0) -> list[SubscriptionDto]:
+        stmt = (
+            select(Subscription)
+            .where(Subscription.user_remna_id.is_(None), Subscription.id > after_id)
+            .order_by(Subscription.id)
+            .limit(limit)
+        )
+        db_subscriptions = (await self.session.scalars(stmt)).all()
+
+        logger.debug(f"Fetched {len(db_subscriptions)} subscriptions without a panel id")
+        return self._convert_to_dto_list(list(db_subscriptions))
+
+    async def set_remna_id(self, subscription_id: int, remna_id: int) -> None:
+        stmt = (
+            update(Subscription)
+            .where(Subscription.id == subscription_id)
+            .values(user_remna_id=remna_id)
+        )
+        await self.session.execute(stmt)
+
+        logger.debug(f"Linked subscription '{subscription_id}' to panel user '{remna_id}'")
 
     async def count_active_by_plan(self, plan_id: int) -> int:
         stmt = (

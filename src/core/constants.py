@@ -29,8 +29,8 @@ URL_PATTERN: Pattern[str] = re.compile(r"^https://\S+$")
 USERNAME_PATTERN: Pattern[str] = re.compile(r"^@[a-zA-Z0-9_]{5,32}$")
 INVITE_LINK_PATTERN: Pattern[str] = re.compile(r"^https://t\.me/(\+|joinchat/)[A-Za-z0-9_\-]+")
 
-REMNAWAVE_MIN_VERSION: Final[Version] = Version("2.7.0")
-REMNAWAVE_MAX_VERSION: Final[Version] = Version("2.8.0")
+REMNAWAVE_MIN_VERSION: Final[Version] = Version("3.2.1")
+REMNAWAVE_MAX_VERSION: Final[Version] = Version("3.3.0")
 
 REPOSITORY: Final[str] = "https://github.com/snoups/remnashop"
 DOCS: Final[str] = "https://remnashop.mintlify.app"
@@ -82,6 +82,14 @@ RECENT_ACTIVITY_MAX_COUNT: Final[int] = 50
 RECENT_ACTIVITY_STORE_CAP: Final[int] = 200
 
 UNLIMITED_EXPIRE_YEAR: Final[int] = 2099
+
+# Page size for `GET /users/stream`, the cursor-paginated replacement for the
+# by-telegram-id / by-email lookups the panel dropped in 3.x. Capped at 1000.
+USERS_STREAM_PAGE_SIZE: Final[int] = 250
+
+# Subscriptions re-linked per transaction when migrating pre-3.0 panel UUIDs to
+# panel user ids.
+RELINK_BATCH_SIZE: Final[int] = 100
 
 BATCH_SIZE_10: Final[int] = 10
 BATCH_SIZE_20: Final[int] = 20

@@ -14,6 +14,21 @@ class UserNotFoundError(Exception):
         super().__init__(f"User with id '{user_id}' not found" if user_id else "User not found")
 
 
+class SubscriptionNotLinkedError(Exception):
+    """A subscription still carries a pre-3.0 panel UUID instead of a panel id.
+
+    Panel 3.x identifies users by a numeric id and no longer exposes the UUID
+    these rows were created with, so they must be re-linked (see the backfill
+    in `SyncRemnaUser`) before any panel call can target them.
+    """
+
+    def __init__(self, subscription_id: Union[int, None] = None) -> None:
+        self.subscription_id = subscription_id
+        super().__init__(
+            f"Subscription '{subscription_id}' is not linked to a Remnawave panel user id"
+        )
+
+
 class FileNotFoundError(Exception): ...
 
 
