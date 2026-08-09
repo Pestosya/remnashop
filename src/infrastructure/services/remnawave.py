@@ -369,6 +369,23 @@ class RemnawaveImpl(Remnawave):
             email=user.email,
         )
 
+    @staticmethod
+    def _panel_status(subscription: SubscriptionDto) -> Optional[SubscriptionStatus]:
+        """Status to send to the panel, or `None` to leave it to the panel.
+
+        Panel 3.x accepts only ACTIVE and DISABLED on update — it derives
+        LIMITED and EXPIRED itself and rejects them being set by hand (error
+        A089). Sending ACTIVE for a subscription whose `expire_at` is already
+        in the past is exactly that contradiction, and the panel answers 400.
+        Omitting the field lets it keep deriving EXPIRED from `expire_at`,
+        while every other field still gets pushed.
+        """
+        if subscription.status == SubscriptionStatus.DISABLED:
+            return SubscriptionStatus.DISABLED
+        if subscription.current_status == SubscriptionStatus.EXPIRED:
+            return None
+        return SubscriptionStatus.ACTIVE
+
     def _build_update_request(
         self,
         user: UserDto,
@@ -381,11 +398,7 @@ class RemnawaveImpl(Remnawave):
                 id=remna_id,
                 telegram_id=user.telegram_id,
                 expire_at=subscription.expire_at,
-                status=(
-                    SubscriptionStatus.DISABLED
-                    if subscription.status == SubscriptionStatus.DISABLED
-                    else SubscriptionStatus.ACTIVE
-                ),
+                status=self._panel_status(subscription),
                 traffic_limit_strategy=subscription.traffic_limit_strategy,
                 traffic_limit_bytes=gb_to_bytes(subscription.traffic_limit),
                 hwid_device_limit=subscription.device_limit,
