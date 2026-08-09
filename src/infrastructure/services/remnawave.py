@@ -6,7 +6,7 @@ from typing import Optional, Union
 from loguru import logger
 from packaging.version import Version
 from remnapy import RemnawaveSDK
-from remnapy.exceptions import AuthenticationError, ConflictError, NotFoundError
+from remnapy.exceptions import ApiError, AuthenticationError, ConflictError, NotFoundError
 from remnapy.models import (
     CreateUserRequestDto,
     DeleteUserAllHwidDeviceRequestDto,
@@ -113,6 +113,15 @@ class RemnawaveImpl(Remnawave):
             )
         except NotFoundError:
             logger.warning(f"RemnaUser with ID '{request_dto.id}' not found")
+            raise
+        except ApiError as e:
+            # `str(ApiError)` only carries the generic message ("Validation
+            # failed"); the per-field detail lives in `errors`.
+            logger.error(
+                f"Panel rejected update for RemnaUser '{request_dto.id}': "
+                f"{e.error.message} (code {e.error.code}), details: {e.error.errors}, "
+                f"sent: {request_dto.model_dump(by_alias=True, exclude_none=True)}"
+            )
             raise
 
         if reset_traffic:
