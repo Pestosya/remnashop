@@ -173,6 +173,7 @@ class SyncAllUsersFromBot(Interactor[None, dict[str, int]]):
         updated = 0
         recreated = 0
         skipped = 0
+        unlinked = 0
         errors = 0
 
         for user in bot_users:
@@ -201,6 +202,14 @@ class SyncAllUsersFromBot(Interactor[None, dict[str, int]]):
                             await self.subscription_dao.update(subscription)
                             await self.uow.commit()
                     updated += 1
+                elif not subscription.is_linked:
+                    # Not "missing from the panel", just "we don't know its id".
+                    # Creating here would collide with the existing panel user.
+                    logger.warning(
+                        f"Skipping reverse sync for {user.log}: subscription "
+                        f"'{subscription.id}' is not linked to a panel user id yet"
+                    )
+                    unlinked += 1
                 else:
                     created_user = await self.remnawave.create_user(
                         user=user,
@@ -220,6 +229,7 @@ class SyncAllUsersFromBot(Interactor[None, dict[str, int]]):
             "updated": updated,
             "recreated": recreated,
             "skipped_no_subscription": skipped,
+            "skipped_unlinked": unlinked,
             "errors": errors,
         }
 

@@ -96,5 +96,20 @@ class RelinkSubscriptions(Interactor[None, int]):
         if not user:
             return None
 
+        # The panel stores telegram_id itself, so it survives users that were
+        # imported under their own username.
+        if user.telegram_id:
+            remna_users = await self.remnawave.get_users_by_telegram_id(user.telegram_id)
+            if len(remna_users) == 1:
+                return remna_users[0].id
+            if len(remna_users) > 1:
+                logger.warning(
+                    f"Subscription '{subscription.id}': telegram_id '{user.telegram_id}' "
+                    f"matches {len(remna_users)} panel users, cannot re-link unambiguously"
+                )
+                return None
+
+        # `remna_name` is derived (`rs_<telegram_id>`), not read back from the
+        # panel, so it only matches users this bot created itself.
         remna_user = await self.remnawave.get_user_by_username(user.remna_name)
         return remna_user.id if remna_user else None
