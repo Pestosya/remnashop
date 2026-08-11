@@ -12,6 +12,10 @@ __pycache__
 logs/
 backups/
 
+# Frontend deps and local builds: the image rebuilds them in the webapp stage.
+webapp/node_modules/
+webapp/dist/
+
 tests/
 
 traefik/

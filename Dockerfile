@@ -1,3 +1,11 @@
+FROM node:22-alpine AS webapp
+WORKDIR /build
+COPY webapp/package.json webapp/package-lock.json* ./
+# `npm ci` needs a lockfile; fall back to `install` on a fresh checkout.
+RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+COPY webapp/ ./
+RUN npm run build
+
 FROM ghcr.io/astral-sh/uv:python3.12-alpine AS builder
 WORKDIR /opt/remnashop
 RUN apk add --no-cache git
@@ -28,6 +36,7 @@ ENV PYTHONPATH=/opt/remnashop
 
 COPY ./src ./src
 COPY ./assets /opt/remnashop/assets.default
+COPY --from=webapp /build/dist /opt/remnashop/webapp/dist
 
 COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh

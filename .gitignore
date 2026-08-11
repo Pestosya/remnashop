@@ -47,3 +47,6 @@ site/
 *.egg-info/
 *.egg
 frontend/
+
+webapp/node_modules/
+webapp/dist/

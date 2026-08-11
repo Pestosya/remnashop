@@ -14,6 +14,9 @@ ASSETS_DIR: Final[Path] = BASE_DIR / "assets"
 ASSETS_DEFAULT_DIR: Final[Path] = BASE_DIR / "assets.default"
 BACKUP_DIR: Final[Path] = BASE_DIR / "backups"
 LOG_DIR: Final[Path] = BASE_DIR / "logs"
+# Built Telegram Mini App. Points at the Vite output rather than the source
+# directory, which also carries an index.html that must never be served.
+WEBAPP_DIR: Final[Path] = BASE_DIR / "webapp" / "dist"
 
 # Per-currency default price for a freshly added plan duration (mirrors the
 # configurator's 30-day tier). Avoids the absurd USD=100 shared default.

@@ -2,6 +2,7 @@ from dishka import FromDishka
 from dishka.integrations.fastapi import inject
 from fastapi import APIRouter, HTTPException, status
 
+from src.application.common import BotService
 from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.core.enums import SubscriptionStatus
 from src.web.schemas import ReferralProgramResponse, ReferralRewardLevelResponse
@@ -18,6 +19,7 @@ async def get_referral_program(
     settings_dao: FromDishka[SettingsDao],
     referral_dao: FromDishka[ReferralDao],
     subscription_dao: FromDishka[SubscriptionDao],
+    bot_service: FromDishka[BotService],
 ) -> ReferralProgramResponse:
     if not user.is_email_verified:
         raise HTTPException(
@@ -55,6 +57,7 @@ async def get_referral_program(
     return ReferralProgramResponse(
         enabled=settings.referral.enable,
         referral_code=user.referral_code,
+        referral_link=await bot_service.get_referral_url(user.referral_code),
         invited_count=invited_count,
         invited_with_payment_count=invited_with_payment_count,
         reward_type=settings.referral.reward.type.value,

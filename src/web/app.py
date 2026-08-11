@@ -8,6 +8,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.__version__ import __version__
 from src.core.config import AppConfig
+from src.core.constants import WEBAPP_DIR
 from src.lifespan import lifespan
 
 from .endpoints import (
@@ -17,6 +18,7 @@ from .endpoints import (
     public_router,
     remnawave_router,
 )
+from .spa import mount_webapp
 
 
 def resolve_cors(origins: list[str]) -> tuple[list[str], bool]:
@@ -71,6 +73,10 @@ def get_app(config: AppConfig, dispatcher: Dispatcher) -> FastAPI:
         async def openapi_schema() -> dict:
             api_routes = [r for r in app.routes if getattr(r, "include_in_schema", True)]
             return get_openapi(title=app.title, version=app.version, routes=api_routes)
+
+    # Mounted last so it cannot shadow an API route.
+    if config.web_enabled:
+        mount_webapp(app, WEBAPP_DIR)
 
     telegram_webhook_endpoint = TelegramWebhookEndpoint(
         dispatcher=dispatcher,
