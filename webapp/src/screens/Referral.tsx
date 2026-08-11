@@ -79,7 +79,7 @@ export default function ReferralScreen() {
         <div className="btn-row">
           <Button onClick={() => shareLink(link, t("referralHint"))}>{t("share")}</Button>
           <Button variant="secondary" onClick={copyCode} busy={busy}>
-            {t("copyLink")}
+            {t("copy")}
           </Button>
         </div>
       </Card>

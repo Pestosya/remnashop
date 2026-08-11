@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { api, login } from "./api";
+import { isDemo } from "./demo";
 import { setLocale, t } from "./i18n";
 import { isTelegram, ready, showBackButton } from "./telegram";
 import { Empty, Skeleton, ToastProvider } from "./ui";
@@ -51,12 +52,10 @@ function SubscriptionTab() {
   const [nonce, setNonce] = useState(0);
 
   return (
-    <>
-      <SubscriptionScreen key={nonce} />
-      <div className="page" style={{ paddingTop: 0 }}>
-        <PromoScreen onChanged={() => setNonce((value) => value + 1)} />
-      </div>
-    </>
+    <SubscriptionScreen
+      key={nonce}
+      extra={<PromoScreen onChanged={() => setNonce((value) => value + 1)} />}
+    />
   );
 }
 
@@ -67,6 +66,13 @@ export default function App() {
     ready();
 
     (async () => {
+      // Offline preview: fixtures stand in for the API, so skip the handshake.
+      if (isDemo()) {
+        api.me().then((me) => setLocale(me.language));
+        setBoot("ready");
+        return;
+      }
+
       if (!isTelegram()) {
         setBoot("unauthorized");
         return;
@@ -111,7 +117,11 @@ export default function App() {
   if (boot === "unauthorized") {
     return (
       <div className="page">
-        <Empty icon="🔐" title={t("openInTelegram")} />
+        <Empty
+          icon="🔐"
+          title={t("openInTelegram")}
+          hint="Для локального просмотра откройте страницу с ?demo=1"
+        />
       </div>
     );
   }

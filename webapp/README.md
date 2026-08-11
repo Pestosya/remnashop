@@ -21,9 +21,19 @@ npm run dev
 ```
 
 `npm run dev` proxies `/api` to `http://localhost:8000`; override with
-`VITE_API_TARGET`. Note that the cabinet needs a real Telegram `initData` to log
-in, so a plain browser will show the "open from the bot" screen. To iterate on
-the UI, open the dev server through a Telegram test bot pointed at your tunnel.
+`VITE_API_TARGET`.
+
+### Previewing without Telegram or a backend
+
+Logging in needs signed Telegram `initData`, so a plain browser normally only
+reaches the "open from the bot" screen. Append `?demo=1` to swap the API layer
+for the fixtures in `src/demo.ts` and browse every screen offline:
+
+    http://localhost:5173/app/?demo=1
+
+Demo mode is opt-in through the query string only, so a real Mini App session
+is never affected. Use it for design review and screenshots; it does not
+exercise auth, payments or the Telegram bridge.
 
 ```bash
 npm run build      # type-checks, then emits dist/

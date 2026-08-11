@@ -1,3 +1,4 @@
+import { demoApi, isDemo } from "./demo";
 import { initData } from "./telegram";
 import type {
   DevicesResponse,
@@ -100,7 +101,7 @@ export async function login(): Promise<boolean> {
   }
 }
 
-export const api = {
+export const realApi = {
   me: () => request<MeResponse>("GET", "/auth/me"),
 
   subscription: {
@@ -135,3 +136,6 @@ export const api = {
 
   referral: () => request<ReferralProgramResponse>("GET", "/referral/program"),
 };
+
+// `demo.ts` only imports `realApi` as a type, so this is not a runtime cycle.
+export const api: typeof realApi = isDemo() ? demoApi : realApi;

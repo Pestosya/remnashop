@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api";
 import { t } from "../i18n";
@@ -39,7 +40,7 @@ function statusLabel(status: string, expiresInPast: boolean): string {
   return t("active");
 }
 
-export default function SubscriptionScreen() {
+export default function SubscriptionScreen({ extra }: { extra?: ReactNode }) {
   const navigate = useNavigate();
   const toast = useToast();
   const subscription = useResource(() => api.subscription.current());
@@ -58,6 +59,7 @@ export default function SubscriptionScreen() {
     return (
       <div className="page">
         <ErrorState onRetry={subscription.reload} />
+        {extra}
       </div>
     );
   }
@@ -73,11 +75,21 @@ export default function SubscriptionScreen() {
           hint={t("noSubscriptionHint")}
           action={<Button onClick={() => navigate("/store")}>{t("choosePlan")}</Button>}
         />
+        {extra}
       </div>
     );
   }
 
-  return <SubscriptionView sub={sub} busy={busy} perform={perform} onChanged={subscription.reload} toast={toast} />;
+  return (
+    <SubscriptionView
+      sub={sub}
+      busy={busy}
+      perform={perform}
+      onChanged={subscription.reload}
+      toast={toast}
+      extra={extra}
+    />
+  );
 }
 
 function SubscriptionView({
@@ -86,12 +98,14 @@ function SubscriptionView({
   perform,
   onChanged,
   toast,
+  extra,
 }: {
   sub: SubscriptionInfoResponse;
   busy: boolean;
   perform: (run: () => Promise<void>) => Promise<void>;
   onChanged: () => void;
   toast: (message: string, tone?: "info" | "error") => void;
+  extra?: ReactNode;
 }) {
   const navigate = useNavigate();
   const expiresInPast = new Date(sub.expire_at).getTime() < Date.now();
@@ -176,6 +190,8 @@ function SubscriptionView({
           {t("reissue")}
         </Button>
       </Card>
+
+      {extra}
     </div>
   );
 }

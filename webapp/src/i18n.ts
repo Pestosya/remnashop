@@ -20,6 +20,7 @@ const ru = {
 
   connect: "Подключить",
   copyLink: "Скопировать ссылку",
+  copy: "Копировать",
   copied: "Скопировано",
   reissue: "Перевыпустить ссылку",
   reissueConfirm: "Старая ссылка перестанет работать. Продолжить?",
@@ -29,7 +30,7 @@ const ru = {
   trafficUsed: "{used} из {limit}",
   unlimited: "Безлимит",
   devicesUsed: "{used} из {limit}",
-  deviceCount: "{count} устройств.",
+  deviceCount: "{count} устр.",
   plan: "Тариф",
   expiresToday: "Истекает сегодня",
   expiredOn: "Истекла {date}",
@@ -102,6 +103,7 @@ const en: Dict = {
 
   connect: "Connect",
   copyLink: "Copy link",
+  copy: "Copy",
   copied: "Copied",
   reissue: "Reissue link",
   reissueConfirm: "The old link will stop working. Continue?",
