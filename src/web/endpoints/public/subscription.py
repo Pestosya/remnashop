@@ -93,7 +93,15 @@ def _assert_web_gateway(gateway_type: PaymentGatewayType) -> None:
 
 
 def _assert_web_purchase_email_verified(user: UserDto) -> None:
-    if user.is_email_verified:
+    """Guard the money paths against unverified email sign-ups.
+
+    Verification is what ties a web account to a reachable person, so it gates
+    purchases, trials and promo codes. It cannot gate a Telegram account: those
+    have no address at all, and a Mini App session is already proof of a real
+    Telegram user — requiring an email there would block every bot user from
+    buying anything.
+    """
+    if user.telegram_id or user.is_email_verified:
         return
 
     raise HTTPException(
