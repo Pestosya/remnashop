@@ -1,4 +1,4 @@
-import { api } from "../api";
+import { ApiError, api } from "../api";
 import { t } from "../i18n";
 import { copy, shareLink } from "../telegram";
 import {
@@ -11,6 +11,18 @@ import {
   useResource,
   useToast,
 } from "../ui";
+
+/** Turns the endpoint's 403 detail into a localized explanation. */
+function gateReason(error: Error): string | null {
+  if (!(error instanceof ApiError) || error.status !== 403) return null;
+
+  const detail = error.message.toLowerCase();
+  if (detail.includes("disabled")) return t("referralDisabled");
+  if (detail.includes("subscription")) return t("referralNeedsSubscription");
+  if (detail.includes("email")) return t("referralNeedsEmail");
+
+  return t("referralDisabled");
+}
 
 export default function ReferralScreen() {
   const program = useResource(() => api.referral());
@@ -27,9 +39,16 @@ export default function ReferralScreen() {
   }
 
   if (program.error) {
+    // A 403 here is a rule, not a failure: the program can be switched off, or
+    // require an active subscription. Showing "retry" for those is misleading.
+    const reason = gateReason(program.error);
     return (
       <div className="page">
-        <ErrorState onRetry={program.reload} />
+        {reason ? (
+          <Empty icon="🤝" title={reason} />
+        ) : (
+          <ErrorState onRetry={program.reload} />
+        )}
       </div>
     );
   }

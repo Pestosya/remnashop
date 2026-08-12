@@ -21,7 +21,11 @@ async def get_referral_program(
     subscription_dao: FromDishka[SubscriptionDao],
     bot_service: FromDishka[BotService],
 ) -> ReferralProgramResponse:
-    if not user.is_email_verified:
+    # Email verification stands in for "this is a real person" and only makes
+    # sense for accounts that signed up with an email. A Telegram account is
+    # already vouched for by Telegram, and the bot's own referral screen has
+    # never asked those users for an address.
+    if not user.telegram_id and not user.is_email_verified:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Referral program is available only for users with verified email",

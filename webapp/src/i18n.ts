@@ -74,6 +74,8 @@ const ru = {
   invited: "Приглашено",
   invitedPaid: "С покупкой",
   referralDisabled: "Реферальная программа отключена",
+  referralNeedsSubscription: "Программа доступна с активной подпиской",
+  referralNeedsEmail: "Подтвердите почту, чтобы участвовать в программе",
 
   retry: "Повторить",
   loadFailed: "Не удалось загрузить",
@@ -157,6 +159,8 @@ const en: Dict = {
   invited: "Invited",
   invitedPaid: "Subscribed",
   referralDisabled: "Referral program is disabled",
+  referralNeedsSubscription: "Available once you have an active subscription",
+  referralNeedsEmail: "Verify your email to join the program",
 
   retry: "Retry",
   loadFailed: "Failed to load",
