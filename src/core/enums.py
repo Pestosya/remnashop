@@ -259,6 +259,16 @@ class SystemNotificationType(UpperStrEnum):
     USER_FIRST_CONNECTION = auto()
     USER_DEVICES_UPDATED = auto()
     USER_REVOKED_SUBSCRIPTION = auto()
+    #
+    SERVER_STATUS = auto()
+    COMPENSATION = auto()
+
+
+class FleetStatus(UpperStrEnum):
+    OK = auto()  # reachable from most Russian networks
+    PARTIAL = auto()  # reachable from some networks only
+    DOWN = auto()  # reachable from (almost) none
+    UNKNOWN = auto()  # the check itself could not be made
 
 
 class UserNotificationType(UpperStrEnum):
@@ -275,6 +285,9 @@ class UserNotificationType(UpperStrEnum):
     REFERRAL_ATTACHED = auto()
     REFERRAL_REWARD_RECEIVED = auto()
     REFERRAL_REWARD_FAILED = auto()
+    #
+    PAYMENT_ABANDONED = auto()
+    WINBACK = auto()
 
 
 class AccessMode(UpperStrEnum):

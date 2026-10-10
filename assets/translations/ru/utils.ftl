@@ -470,6 +470,10 @@ notification-type = { $notification_type ->
     [NOT_CONNECTED] Нет подключения
     [TORRENT_BLOCKED] Ограничение Torrent
     [BLACKLIST_ATTEMPT] Регистрация пользователя (из ЧС)
+    [PAYMENT_ABANDONED] Незавершенная оплата
+    [WINBACK] Возврат ушедших
+    [SERVER_STATUS] Доступность серверов
+    [COMPENSATION] Компенсация простоя
     *[OTHER] { $notification_type }
     }
 

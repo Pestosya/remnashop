@@ -6,7 +6,9 @@ from .system import (
     BotStartupEvent,
     BotUpdateEvent,
     ChannelCheckErrorEvent,
+    CompensationFinishedEvent,
     ErrorEvent,
+    FleetStatusChangedEvent,
     NodeConnectionLostEvent,
     NodeConnectionRestoredEvent,
     NodeTrafficReachedEvent,
@@ -23,12 +25,14 @@ from .system import (
     WebhookErrorEvent,
 )
 from .user import (
+    PaymentAbandonedEvent,
     ReferralAttachedEvent,
     ReferralRewardFailedEvent,
     ReferralRewardReceivedEvent,
     SubscriptionExpiredEvent,
     SubscriptionExpiresEvent,
     SubscriptionLimitedEvent,
+    SubscriptionWinbackEvent,
     TorrentBlockedEvent,
     UserNotConnectedEvent,
 )
@@ -38,6 +42,8 @@ __all__ = [
     "SystemEvent",
     "UserEvent",
     "ChannelCheckErrorEvent",
+    "CompensationFinishedEvent",
+    "FleetStatusChangedEvent",
     "ErrorEvent",
     "NotificationErrorEvent",
     "WebhookErrorEvent",
@@ -70,5 +76,7 @@ __all__ = [
     "SubscriptionExpiredEvent",
     "SubscriptionExpiresEvent",
     "SubscriptionLimitedEvent",
+    "SubscriptionWinbackEvent",
+    "PaymentAbandonedEvent",
     "TorrentBlockedEvent",
 ]

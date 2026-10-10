@@ -52,15 +52,17 @@ from src.application.events.system import (
     UserRegisteredEvent,
 )
 from src.application.events.user import (
+    PaymentAbandonedEvent,
     SubscriptionExpiredAgoEvent,
     SubscriptionExpiredEvent,
     SubscriptionExpiresEvent,
     SubscriptionLimitedEvent,
+    SubscriptionWinbackEvent,
     TorrentBlockedEvent,
     UserNotConnectedEvent,
 )
 from src.core.config import AppConfig
-from src.core.enums import Locale, Role
+from src.core.enums import Locale, PurchaseType, Role
 from src.core.types import AnyKeyboard, NotificationType
 from src.infrastructure.services.event_bus import on_event
 from src.infrastructure.services.notification_queue import NotificationWorker
@@ -118,7 +120,7 @@ class NotificationService(Notifier):
     ) -> None:
         await self.worker.enqueue(NotificationTaskDto(payload=payload, roles=roles))
 
-    def _resolve_keyboard(self, event: "BaseEvent") -> "Optional[AnyKeyboard]":
+    def _resolve_user_keyboard(self, event: "UserEvent") -> "Optional[AnyKeyboard]":
         if isinstance(
             event,
             (
@@ -126,13 +128,23 @@ class NotificationService(Notifier):
                 SubscriptionExpiredEvent,
                 SubscriptionExpiredAgoEvent,
                 SubscriptionExpiresEvent,
+                SubscriptionWinbackEvent,
             ),
         ):
             return get_buy_keyboard() if event.is_trial else get_renew_keyboard()
-        if isinstance(event, UserNotConnectedEvent):
+        if isinstance(event, PaymentAbandonedEvent):
+            return (
+                get_buy_keyboard()
+                if event.purchase_type == PurchaseType.NEW
+                else get_renew_keyboard()
+            )
+        if isinstance(event, (UserNotConnectedEvent, TorrentBlockedEvent)):
             return get_contact_support_keyboard(event.support_url)
-        if isinstance(event, TorrentBlockedEvent):
-            return get_contact_support_keyboard(event.support_url)
+        return None
+
+    def _resolve_keyboard(self, event: "BaseEvent") -> "Optional[AnyKeyboard]":
+        if isinstance(event, UserEvent):
+            return self._resolve_user_keyboard(event)
         if isinstance(event, TorrentBlockerReportEvent):
             return get_user_keyboard(event.user_id)
         if isinstance(event, RemnashopWelcomeEvent):

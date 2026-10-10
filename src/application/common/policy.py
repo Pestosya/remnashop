@@ -47,6 +47,7 @@ class Permission(UpperStrEnum):
     VIEW_BACKUP = auto()
     VIEW_EXTRA_SETTINGS = auto()
     VIEW_BLACKLIST = auto()
+    VIEW_FLEET = auto()
     #
     SETTINGS_REFERRAL = auto()
     SETTINGS_NOTIFICATIONS = auto()
@@ -56,6 +57,7 @@ class Permission(UpperStrEnum):
     SETTINGS_CURRENCY = auto()
     SETTINGS_BACKUP = auto()
     SETTINGS_EXTRA = auto()
+    SETTINGS_FLEET = auto()
     #
     REMNASHOP_GATEWAYS = auto()
     REMNASHOP_PLAN_EDITOR = auto()
@@ -70,6 +72,7 @@ class Permission(UpperStrEnum):
     REVOKE_ROLE = auto()
     UNBLOCK_ALL = auto()
     BLACKLIST = auto()
+    COMPENSATION = auto()
 
 
 ROLE_PERMISSIONS: Final[dict[Role, set[Permission]]] = {

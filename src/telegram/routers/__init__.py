@@ -41,6 +41,7 @@ def setup_routers(router: Router) -> None:
         dashboard.users.user.dialog.router,
         #
         dashboard.importer.dialog.router,
+        dashboard.fleet.dialog.router,
     ]
 
     router.include_routers(*routers)

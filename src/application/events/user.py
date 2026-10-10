@@ -4,7 +4,12 @@ from typing import Any
 from remnapy.enums.users import TrafficLimitStrategy
 
 from src.application.dto import MessagePayloadDto
-from src.core.enums import MessageEffectId, ReferralRewardType, UserNotificationType
+from src.core.enums import (
+    MessageEffectId,
+    PurchaseType,
+    ReferralRewardType,
+    UserNotificationType,
+)
 from src.core.types import NotificationType
 
 from .base import UserEvent
@@ -191,5 +196,61 @@ class UserNotConnectedEvent(UserEvent):
         return MessagePayloadDto(
             i18n_key=self.event_key,
             disable_default_markup=True,
+            delete_after=None,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class PaymentAbandonedEvent(UserEvent):
+    """A payment was started and never completed (expired or declined)."""
+
+    notification_type: NotificationType = field(
+        default=UserNotificationType.PAYMENT_ABANDONED,
+        init=False,
+    )
+
+    purchase_type: PurchaseType
+    plan_name: str
+
+    @property
+    def event_key(self) -> str:
+        return "event-payment.abandoned"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            # a plan may be named by a translation key: resolved like in the purchase events
+            i18n_kwargs={"purchase_type": self.purchase_type, "plan_name": (self.plan_name, {})},
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class SubscriptionWinbackEvent(UserEvent):
+    """Follow-up for a subscription (or trial) that expired `day` days ago."""
+
+    notification_type: NotificationType = field(
+        default=UserNotificationType.WINBACK,
+        init=False,
+    )
+
+    is_trial: bool
+    day: int
+    discount: int
+
+    @property
+    def event_key(self) -> str:
+        return "event-subscription.winback"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={
+                "is_trial": int(self.is_trial),
+                "value": self.day,
+                "discount": self.discount,
+            },
+            disable_default_markup=False,
             delete_after=None,
         )

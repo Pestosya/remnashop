@@ -4,6 +4,7 @@ from .dispatcher import BroadcastDispatcher, PaymentNotificationDispatcher
 from .email_sender import EmailSender
 from .event_bus import EventPublisher, EventSubscriber
 from .file_downloader import FileDownloader
+from .fleet import FleetProber, PanelFleet
 from .http_client import HttpClient
 from .interactor import Interactor
 from .notifier import Notifier
@@ -20,6 +21,8 @@ __all__ = [
     "EventPublisher",
     "EventSubscriber",
     "FileDownloader",
+    "FleetProber",
+    "PanelFleet",
     "HttpClient",
     "Interactor",
     "Notifier",

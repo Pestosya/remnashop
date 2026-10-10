@@ -8,8 +8,10 @@ from src.application.common import (
     EventPublisher,
     EventSubscriber,
     FileDownloader,
+    FleetProber,
     HttpClient,
     Notifier,
+    PanelFleet,
     PasswordHasher,
     PaymentNotificationDispatcher,
     Redirect,
@@ -28,6 +30,7 @@ from src.infrastructure.services import (
     CommandService,
     CryptographerImpl,
     EventBusImpl,
+    GlobalpingProber,
     HealthService,
     NotificationQueue,
     NotificationService,
@@ -35,6 +38,7 @@ from src.infrastructure.services import (
     PasswordHasherImpl,
     PaymentNotificationDispatcherImpl,
     RedirectImpl,
+    RemnaPanelFleet,
     RemnawaveImpl,
     SmtpEmailSender,
     WebhookService,
@@ -62,6 +66,8 @@ class ServicesProvider(Provider):
     webhook = provide(source=WebhookService)
 
     remnawave = provide(source=RemnawaveImpl, provides=Remnawave)
+    panel_fleet = provide(source=RemnaPanelFleet, provides=PanelFleet)
+    fleet_prober = provide(source=GlobalpingProber, provides=FleetProber)
     remna_webhook = provide(source=RemnaWebhookService, scope=Scope.REQUEST)
 
     notification_queue = provide(source=NotificationQueue)

@@ -8,6 +8,8 @@ from loguru import logger
 from src.application.common import BotService, Remnawave, TranslatorRunner
 from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
+from src.application.services.fleet import server_statuses
+from src.application.use_cases.fleet.queries.state import GetFleetState
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.core.config import AppConfig
 from src.core.exceptions import MenuRenderError
@@ -267,4 +269,27 @@ async def invite_about_getter(
         "accrual_strategy": settings.referral.accrual_strategy,
         "identical_reward": identical_reward,
         "max_level": max_level,
+    }
+
+
+@inject
+async def help_getter(
+    dialog_manager: DialogManager,
+    user: TelegramUserDto,
+    bot_service: FromDishka[BotService],
+    i18n: FromDishka[TranslatorRunner],
+    get_fleet_state: FromDishka[GetFleetState],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Troubleshooting menu: what to try, and what the last reachability check says."""
+    state = await get_fleet_state(user)
+    lines = [
+        i18n.get("msg-menu-help.server", name=name, status=status)
+        for name, status in server_statuses(state)
+    ]
+    servers = i18n.get("msg-menu-help.servers", servers="\n".join(lines)) + "\n\n" if lines else ""
+
+    return {
+        "servers": servers,
+        "support_url": bot_service.get_support_url(text=i18n.get("message.help")),
     }

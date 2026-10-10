@@ -5,6 +5,7 @@ from .dispatcher import BroadcastDispatcherImpl, PaymentNotificationDispatcherIm
 from .email_sender import SmtpEmailSender
 from .event_bus import EventBusImpl
 from .file_downloader import AiogramFileDownloader
+from .fleet import GlobalpingProber, RemnaPanelFleet
 from .health import HealthService
 from .http_client import AiohttpClient
 from .notification import NotificationService
@@ -17,6 +18,8 @@ from .webhook import WebhookService
 from .xui_reader import XuiDbReaderImpl
 
 __all__ = [
+    "GlobalpingProber",
+    "RemnaPanelFleet",
     "AiogramFileDownloader",
     "AiohttpClient",
     "BotServiceImpl",

@@ -11,6 +11,7 @@ class MainMenu(StatesGroup):
     DEVICE_CONFIRM_REISSUE = State()
     INVITE = State()
     INVITE_ABOUT = State()
+    HELP = State()
 
 
 class Notification(StatesGroup):
@@ -32,6 +33,12 @@ class Subscription(StatesGroup):
 
 class Dashboard(StatesGroup):
     MAIN = State()
+
+
+class DashboardFleet(StatesGroup):
+    MAIN = State()
+    COMPENSATION = State()
+    COMPENSATION_CONFIRM = State()
 
 
 class DashboardStatistics(StatesGroup):

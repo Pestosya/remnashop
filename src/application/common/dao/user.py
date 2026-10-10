@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Optional, Protocol, runtime_checkable
 
 from src.application.dto import UserDto
@@ -79,11 +80,20 @@ class UserDao(Protocol):
 
     async def get_with_active_subscription(self) -> list[UserDto]: ...
 
+    async def get_with_active_paid_subscription(self) -> list[UserDto]: ...
+
     async def get_without_subscription(self) -> list[UserDto]: ...
 
     async def get_with_expired_subscription(self) -> list[UserDto]: ...
 
     async def get_with_trial_subscription(self) -> list[UserDto]: ...
+
+    async def get_expired_between(
+        self,
+        start: datetime,
+        end: datetime,
+        is_trial: bool,
+    ) -> list[UserDto]: ...
 
     async def count_new(self, days: int) -> int: ...
 

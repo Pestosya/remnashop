@@ -29,6 +29,7 @@ from src.telegram.window import Window
 from .getters import (
     device_confirm_delete_getter,
     devices_getter,
+    help_getter,
     invite_about_getter,
     invite_getter,
     menu_getter,
@@ -92,6 +93,13 @@ menu = Window(
             text=I18nFormat("btn-menu.subscription"),
             id=f"{PAYMENT_PREFIX}subscription",
             state=Subscription.MAIN,
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-menu.help"),
+            id="help",
+            state=MainMenu.HELP,
         ),
     ),
     Row(
@@ -343,8 +351,31 @@ device_confirm_reissue = Window(
     getter=device_confirm_delete_getter,
 )
 
+help_window = Window(
+    Banner(BannerName.MENU),
+    I18nFormat("msg-menu-help.main"),
+    Row(
+        Url(
+            text=I18nFormat("btn-menu.support"),
+            id="support",
+            url=Format("{support_url}"),
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-back.general"),
+            id="back",
+            state=MainMenu.MAIN,
+        ),
+    ),
+    IgnoreUpdate(),
+    state=MainMenu.HELP,
+    getter=help_getter,
+)
+
 router = Dialog(
     menu,
+    help_window,
     devices,
     device_confirm_delete,
     device_confirm_delete_all,

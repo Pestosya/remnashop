@@ -181,6 +181,45 @@ class TransactionDaoImpl(TransactionDao):
 
         return cast(int, count)
 
+    async def get_abandoned(
+        self,
+        min_age_minutes: int = 30,
+        max_age_minutes: int = 120,
+    ) -> list[TransactionDto]:
+        """Paid, non-test payments that were started and are still unpaid (pending) or were
+        cancelled (expired, declined), newest first. The age window keeps a payment visible
+        to a few consecutive runs of the cleanup task and then drops it for good."""
+        now = datetime_now()
+        stmt = (
+            select(Transaction)
+            .where(
+                Transaction.status.in_((TransactionStatus.PENDING, TransactionStatus.CANCELED)),
+                Transaction.is_test.is_(False),
+                Transaction.pricing["final_amount"].as_float() > 0,
+                Transaction.created_at < now - timedelta(minutes=min_age_minutes),
+                Transaction.created_at >= now - timedelta(minutes=max_age_minutes),
+            )
+            .order_by(Transaction.created_at.desc())
+        )
+        result = await self.session.scalars(stmt)
+        db_transactions = cast(list, result.all())
+
+        logger.debug(f"Found '{len(db_transactions)}' abandoned transactions")
+        return self._convert_to_dto_list(db_transactions)
+
+    async def has_activity_after(self, user_id: int, moment: datetime) -> bool:
+        """True when the user started or completed another payment after `moment`."""
+        stmt = select(
+            select(Transaction.id)
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.created_at > moment,
+                Transaction.status.in_((TransactionStatus.PENDING, TransactionStatus.COMPLETED)),
+            )
+            .exists()
+        )
+        return await self.session.scalar(stmt) or False
+
     async def count(self) -> int:
         stmt = select(func.count()).select_from(Transaction)
         total = await self.session.scalar(stmt) or 0

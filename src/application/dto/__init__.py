@@ -2,6 +2,14 @@ from .ad_link import AdLinkDto, AdLinkStatsDto
 from .base import BaseDto, TimestampMixin, TrackableMixin
 from .broadcast import BroadcastDto, BroadcastMessageDto
 from .build import BuildInfoDto
+from .fleet import (
+    FleetChangesDto,
+    FleetHostStateDto,
+    FleetStateDto,
+    PanelHostDto,
+    ProbeResultDto,
+    ProbeTargetDto,
+)
 from .message_payload import MediaDescriptorDto, MessagePayloadDto
 from .notification_task import NotificationTaskDto
 from .payment_gateway import (
@@ -19,6 +27,7 @@ from .settings import (
     BlacklistSettingsDto,
     BlacklistSourceDto,
     ExtraSettingsDto,
+    FleetSettingsDto,
     MenuButtonDto,
     MenuSettingsDto,
     NotificationsSettingsDto,
@@ -26,8 +35,10 @@ from .settings import (
     ReferralSettingsDto,
     RequirementSettingsDto,
     ResetFeatureSettingsDto,
+    RetentionSettingsDto,
     SettingsDto,
     SystemNotificationRouteDto,
+    WinbackStepDto,
 )
 from .statistics import (
     GatewayStatsDto,
@@ -83,6 +94,13 @@ __all__ = [
     "BlacklistSettingsDto",
     "BlacklistSourceDto",
     "ExtraSettingsDto",
+    "FleetSettingsDto",
+    "FleetChangesDto",
+    "FleetHostStateDto",
+    "FleetStateDto",
+    "PanelHostDto",
+    "ProbeResultDto",
+    "ProbeTargetDto",
     "MenuButtonDto",
     "MenuSettingsDto",
     "NotificationsSettingsDto",
@@ -90,8 +108,10 @@ __all__ = [
     "ReferralSettingsDto",
     "RequirementSettingsDto",
     "ResetFeatureSettingsDto",
+    "RetentionSettingsDto",
     "SettingsDto",
     "SystemNotificationRouteDto",
+    "WinbackStepDto",
     "RemnaSubscriptionDto",
     "SquadInfoDto",
     "SubscriptionDto",

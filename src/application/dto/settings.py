@@ -220,6 +220,56 @@ class ResetFeatureSettingsDto(TrackableMixin):
 
 
 @dataclass(kw_only=True)
+class WinbackStepDto:
+    """One follow-up message: sent `day` days after the expiry, optionally with a one-time
+    discount (percent) on the next purchase."""
+
+    day: int
+    discount: int = 0
+
+
+def get_default_winback_paid() -> list[WinbackStepDto]:
+    return [
+        WinbackStepDto(day=3),
+        WinbackStepDto(day=7, discount=10),
+        WinbackStepDto(day=21, discount=20),
+    ]
+
+
+def get_default_winback_trial() -> list[WinbackStepDto]:
+    return [
+        WinbackStepDto(day=3),
+        WinbackStepDto(day=7, discount=15),
+    ]
+
+
+@dataclass(kw_only=True)
+class RetentionSettingsDto(TrackableMixin):
+    # Follow-ups after a paid subscription / a trial expired. The panel already notifies
+    # one day after the expiry, so the series starts later.
+    winback_paid: list[WinbackStepDto] = field(default_factory=get_default_winback_paid)
+    winback_trial: list[WinbackStepDto] = field(default_factory=get_default_winback_trial)
+    # At most one "payment not completed" reminder per user within this many hours.
+    abandoned_payment_cooldown_hours: int = 24
+
+
+@dataclass(kw_only=True)
+class FleetSettingsDto(TrackableMixin):
+    # Periodic reachability check of the panel's hosts from Russian networks + admin alerts.
+    enabled: bool = True
+    # Take a host that stays unreachable out of the subscriptions and put it back when it
+    # recovers. Off by default: watch the alerts for a while before trusting it with users.
+    auto_hide: bool = False
+    # Replace the subscription announce with an outage notice while servers are down.
+    announce: bool = False
+    # Hosts the automation itself has disabled; only these are ever re-enabled by it.
+    hidden_hosts: list[str] = field(default_factory=list)
+    # The admin's own announce, kept while the outage notice is shown.
+    base_announce: Optional[str] = None
+    outage_announce: Optional[str] = None
+
+
+@dataclass(kw_only=True)
 class ExtraSettingsDto(TrackableMixin):
     device_single_reset: ResetFeatureSettingsDto = field(default_factory=ResetFeatureSettingsDto)
     device_all_reset: ResetFeatureSettingsDto = field(default_factory=ResetFeatureSettingsDto)
@@ -227,6 +277,8 @@ class ExtraSettingsDto(TrackableMixin):
     referral_reset: ResetFeatureSettingsDto = field(default_factory=ResetFeatureSettingsDto)
     trial_channel_guard: bool = False
     mini_app_reserve: bool = False
+    retention: RetentionSettingsDto = field(default_factory=RetentionSettingsDto)
+    fleet: FleetSettingsDto = field(default_factory=FleetSettingsDto)
 
 
 @dataclass(kw_only=True)

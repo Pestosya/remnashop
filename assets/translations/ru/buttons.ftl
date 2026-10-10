@@ -71,6 +71,7 @@ btn-menu =
     .invite = 👥 Пригласить
     .support = 🆘 Поддержка
     .web-cabinet = 🌐 Личный кабинет
+    .help = 🛟 Не подключается?
     .dashboard = 🛠 Панель управления
 
     .connect-not-available =
@@ -98,6 +99,7 @@ btn-dashboard =
     .remnashop = 🛍 RemnaShop
     .transactions = 🧾 Транзакции
     .importer = 📥 Импорт пользователей
+    .fleet = 🛰 Серверы
 
 btn-statistics =
     .users = 👥 Пользователи
@@ -599,3 +601,21 @@ btn-ad-links =
     [1] 🟢 Включена
     *[0] 🔴 Выключена
     }
+
+btn-fleet =
+    .enabled = { $enabled ->
+        [1] 🟢 Мониторинг: включен
+        *[0] 🔴 Мониторинг: выключен
+    }
+    .auto-hide = { $auto_hide ->
+        [1] 🟢 Скрывать недоступные: включено
+        *[0] 🔴 Скрывать недоступные: выключено
+    }
+    .announce = { $announce ->
+        [1] 🟢 Объявление о сбое: включено
+        *[0] 🔴 Объявление о сбое: выключено
+    }
+    .check = 🔄 Проверить сейчас
+    .refresh = ♻️ Обновить экран
+    .compensation = 🎁 Компенсация простоя
+    .compensation-confirm = ✅ Начислить

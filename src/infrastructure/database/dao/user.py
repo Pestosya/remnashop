@@ -387,6 +387,21 @@ class UserDaoImpl(UserDao):
         result = await self.session.execute(stmt)
         return self._convert_to_dto_list(list(result.scalars()))
 
+    async def get_with_active_paid_subscription(self) -> list[UserDto]:
+        """Everyone with an active non-trial subscription, including users who blocked the
+        bot: they paid as well."""
+        stmt = (
+            select(User)
+            .join(Subscription, User.current_subscription_id == Subscription.id)
+            .where(
+                User.is_blocked.is_(False),
+                Subscription.status == SubscriptionStatus.ACTIVE,
+                Subscription.is_trial.is_(False),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return self._convert_to_dto_list(list(result.scalars()))
+
     async def get_without_subscription(self) -> list[UserDto]:
         stmt = select(User).where(
             User.is_blocked.is_(False),
@@ -417,6 +432,31 @@ class UserDaoImpl(UserDao):
                 User.is_blocked.is_(False),
                 User.is_bot_blocked.is_(False),
                 Subscription.is_trial.is_(True),
+            )
+        )
+        result = await self.session.execute(stmt)
+        return self._convert_to_dto_list(list(result.scalars()))
+
+    async def get_expired_between(
+        self,
+        start: datetime,
+        end: datetime,
+        is_trial: bool,
+    ) -> list[UserDto]:
+        """Reachable Telegram users whose current subscription ran out within [start, end).
+        The expiry date decides, not the status: a renewal moves the date into the future
+        and takes the user out by itself."""
+        stmt = (
+            select(User)
+            .join(Subscription, User.current_subscription_id == Subscription.id)
+            .where(
+                User.is_blocked.is_(False),
+                User.is_bot_blocked.is_(False),
+                User.telegram_id.isnot(None),
+                Subscription.is_trial.is_(is_trial),
+                Subscription.status != SubscriptionStatus.DELETED,
+                Subscription.expire_at >= start,
+                Subscription.expire_at < end,
             )
         )
         result = await self.session.execute(stmt)

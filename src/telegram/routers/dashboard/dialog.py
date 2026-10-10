@@ -8,6 +8,7 @@ from src.telegram.states import (
     Dashboard,
     DashboardAccess,
     DashboardBroadcast,
+    DashboardFleet,
     DashboardImporter,
     DashboardPromocodes,
     DashboardRemnashop,
@@ -87,6 +88,15 @@ dashboard = Window(
             mode=StartMode.RESET_STACK,
             when=require_permission(Permission.VIEW_REMNASHOP),
         ),
+    ),
+    Row(
+        Start(
+            text=I18nFormat("btn-dashboard.fleet"),
+            id="fleet",
+            state=DashboardFleet.MAIN,
+            mode=StartMode.RESET_STACK,
+        ),
+        when=require_permission(Permission.VIEW_FLEET),
     ),
     Row(
         Start(

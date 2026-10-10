@@ -573,3 +573,58 @@ class PromocodeActivatedEvent(SystemEvent):
             disable_default_markup=False,
             delete_after=None,
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class FleetStatusChangedEvent(SystemEvent):
+    """Servers became unreachable from Russia or came back; `report` is ready-made text."""
+
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.SERVER_STATUS,
+        init=False,
+    )
+
+    report: str
+    all_down: bool = False
+
+    @property
+    def event_key(self) -> str:
+        return "event-fleet.status"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={"report": self.report, "all_down": int(self.all_down)},
+            disable_default_markup=False,
+            delete_after=None,
+        )
+
+
+@dataclass(frozen=True, kw_only=True)
+class CompensationFinishedEvent(SystemEvent):
+    notification_type: NotificationType = field(
+        default=SystemNotificationType.COMPENSATION,
+        init=False,
+    )
+
+    days: int
+    extended: int
+    failed: int
+    notified: int
+
+    @property
+    def event_key(self) -> str:
+        return "event-fleet.compensation"
+
+    def as_payload(self) -> "MessagePayloadDto":
+        return MessagePayloadDto(
+            i18n_key=self.event_key,
+            i18n_kwargs={
+                "value": self.days,
+                "extended": self.extended,
+                "failed": self.failed,
+                "notified": self.notified,
+            },
+            disable_default_markup=False,
+            delete_after=None,
+        )
