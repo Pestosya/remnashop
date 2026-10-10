@@ -362,10 +362,19 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 return
 
             elif new_status == TransactionStatus.COMPLETED:
+                # CANCELED is accepted too: the cleanup task cancels a pending payment after
+                # 30 minutes, but the gateway may still take the money later (a YooKassa link
+                # lives for an hour, a Stars invoice never expires). The gateway is the source
+                # of truth, so a late success must still deliver the subscription.
+                self._log_late_payment(transaction, user)
                 updated = await self.transaction_dao.transition_status(
                     payment_id,
                     TransactionStatus.COMPLETED,
-                    (TransactionStatus.PENDING, TransactionStatus.FAILED),
+                    (
+                        TransactionStatus.PENDING,
+                        TransactionStatus.FAILED,
+                        TransactionStatus.CANCELED,
+                    ),
                 )
                 if not updated:
                     logger.warning(
@@ -419,6 +428,14 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         # UoW closed cleanly; purchase_subscription will open its own UoW
         await self._handle_success(user, transaction)
         logger.info(f"Payment succeeded '{payment_id}' for user {user.log}")
+
+    @staticmethod
+    def _log_late_payment(transaction: TransactionDto, user: UserDto) -> None:
+        if transaction.status == TransactionStatus.CANCELED:
+            logger.warning(
+                f"Late payment '{transaction.payment_id}' for user '{user.remna_name}': "
+                f"succeeded after it was canceled locally, processing anyway"
+            )
 
     async def _handle_success(self, user: UserDto, transaction: TransactionDto) -> None:
         if transaction.is_test:
