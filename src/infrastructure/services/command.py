@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Final, Optional
 
 from aiogram import Bot
 from aiogram.types import BotCommand, BotCommandScopeAllPrivateChats
@@ -7,6 +7,10 @@ from loguru import logger
 from src.application.common import TranslatorHub
 from src.core.config import AppConfig
 from src.core.enums import Command, Locale
+
+# What the command menu shows. The other commands keep working when typed (Telegram
+# requires /paysupport of a bot that takes payments); they are just not advertised.
+MENU_COMMANDS: Final[tuple[Command, ...]] = (Command.START,)
 
 
 class CommandService:
@@ -40,7 +44,7 @@ class CommandService:
                     command=cmd.value.command,
                     description=i18n.get(cmd.value.description),
                 )
-                for cmd in Command
+                for cmd in MENU_COMMANDS
             ]
 
             success = await self.bot.set_my_commands(
