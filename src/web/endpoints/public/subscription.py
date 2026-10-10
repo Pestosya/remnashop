@@ -13,6 +13,7 @@ from src.application.common.dao import (
 )
 from src.application.dto import PlanDto, PlanSnapshotDto, UserDto
 from src.application.services import PricingService
+from src.application.use_cases.fleet.queries.servers import GetPlanServers
 from src.application.use_cases.gateways.commands.payment import (
     CreatePayment,
     CreatePaymentDto,
@@ -69,7 +70,7 @@ from src.web.schemas import (
     TrialPurchaseRequest,
 )
 
-from ._common import CurrentUser
+from ._common import CurrentUser, describe_plan_for_web
 
 router = APIRouter(prefix="/subscription", tags=["Public - Subscription"])
 
@@ -562,6 +563,7 @@ async def get_subscription_offers(
     pricing_service: FromDishka[PricingService],
     get_available_plans: FromDishka[GetAvailablePlans],
     match_plan: FromDishka[MatchPlan],
+    get_plan_servers: FromDishka[GetPlanServers],
 ) -> SubscriptionOffersResponse:
     active_gateways = await payment_gateway_dao.get_active()
     web_gateways = [
@@ -629,7 +631,7 @@ async def get_subscription_offers(
                 id=plan.id,
                 public_code=plan.public_code,
                 name=plan.name,
-                description=plan.description,
+                description=await describe_plan_for_web(plan, get_plan_servers),
                 traffic_limit=plan.traffic_limit,
                 device_limit=plan.device_limit,
                 type=plan.type.value,

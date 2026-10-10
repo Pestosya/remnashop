@@ -41,9 +41,18 @@ class RemnaPanelFleet(PanelFleet):
                 sni=host.get("sni") or None,
                 is_disabled=bool(host.get("isDisabled")),
                 is_virtual=bool(host.get("xrayJsonTemplateUuid")),
+                is_hidden=bool(host.get("isHidden")),
+                inbound_uuid=(host.get("inbound") or {}).get("configProfileInboundUuid"),
             )
             for host in sorted(hosts, key=lambda h: h.get("viewPosition") or 0)
         ]
+
+    async def get_squad_inbounds(self) -> dict[str, list[str]]:
+        response = await self._request("GET", "internal-squads")
+        return {
+            squad["uuid"]: [inbound["uuid"] for inbound in squad.get("inbounds") or []]
+            for squad in response.get("internalSquads") or []
+        }
 
     async def set_host_disabled(self, uuid: str, disabled: bool) -> None:
         await self._request("PATCH", "hosts", {"uuid": uuid, "isDisabled": disabled})

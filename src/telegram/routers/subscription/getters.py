@@ -1,4 +1,5 @@
-from typing import Any, cast
+import html
+from typing import Any, Union, cast
 
 from adaptix import Retort
 from aiogram_dialog import DialogManager
@@ -10,6 +11,8 @@ from src.application.common import TranslatorRunner
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
 from src.application.dto import PaymentGatewayDto, PlanDto, PriceDetailsDto, TelegramUserDto
 from src.application.services import PricingService
+from src.application.services.fleet import describe_plan
+from src.application.use_cases.fleet.queries.servers import GetPlanServers
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
 from src.core.config import AppConfig
@@ -20,6 +23,22 @@ from src.core.utils.i18n_helpers import (
     i18n_format_expire_time,
     i18n_format_traffic_limit,
 )
+
+
+async def _describe(
+    user: TelegramUserDto,
+    plan: PlanDto,
+    i18n: TranslatorRunner,
+    get_plan_servers: GetPlanServers,
+) -> Union[str, bool]:
+    """The plan's description with the servers it gives access to (see `describe_plan`)."""
+    servers = [html.escape(name) for name in await get_plan_servers(user, plan.internal_squads)]
+    description = describe_plan(
+        description=i18n.get(plan.description) if plan.description else None,
+        servers=servers,
+        more=lambda count: i18n.get("msg-subscription-servers.more", count=count),
+    )
+    return description or False
 
 
 def _get_gateway_title(i18n: TranslatorRunner, gateway: PaymentGatewayDto) -> str:
@@ -53,6 +72,7 @@ async def plan_getter(
     plan_dao: FromDishka[PlanDao],
     subscription_dao: FromDishka[SubscriptionDao],
     match_plan: FromDishka[MatchPlan],
+    get_plan_servers: FromDishka[GetPlanServers],
     **kwargs: Any,
 ) -> dict[str, Any]:
     plan_id: int = dialog_manager.start_data["plan_id"]  # type: ignore[call-overload, index, assignment]
@@ -81,7 +101,7 @@ async def plan_getter(
     return {
         "plan_id": [plan.id],
         "name": i18n.get(plan.name),
-        "description": i18n.get(plan.description) if plan.description else False,
+        "description": await _describe(user, plan, i18n, get_plan_servers),
         "purchase_type": purchase_type,
     }
 
@@ -117,6 +137,7 @@ async def duration_getter(
     i18n: FromDishka[TranslatorRunner],
     settings_dao: FromDishka[SettingsDao],
     pricing_service: FromDishka[PricingService],
+    get_plan_servers: FromDishka[GetPlanServers],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -149,7 +170,7 @@ async def duration_getter(
 
     return {
         "plan": i18n.get(plan.name),
-        "description": i18n.get(plan.description) if plan.description else False,
+        "description": await _describe(user, plan, i18n, get_plan_servers),
         "type": plan.type,
         "devices": i18n_format_device_limit(plan.device_limit),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
@@ -172,6 +193,7 @@ async def payment_method_getter(
     i18n: FromDishka[TranslatorRunner],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
+    get_plan_servers: FromDishka[GetPlanServers],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -211,7 +233,7 @@ async def payment_method_getter(
 
     return {
         "plan": i18n.get(plan.name),
-        "description": i18n.get(plan.description) if plan.description else False,
+        "description": await _describe(user, plan, i18n, get_plan_servers),
         "type": plan.type,
         "devices": i18n_format_device_limit(plan.device_limit),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
@@ -236,6 +258,7 @@ async def confirm_getter(
     i18n: FromDishka[TranslatorRunner],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
+    get_plan_servers: FromDishka[GetPlanServers],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -271,7 +294,7 @@ async def confirm_getter(
     return {
         "purchase_type": purchase_type,
         "plan": i18n.get(plan.name),
-        "description": i18n.get(plan.description) if plan.description else False,
+        "description": await _describe(user, plan, i18n, get_plan_servers),
         "type": plan.type,
         "devices": i18n_format_device_limit(plan.device_limit),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),

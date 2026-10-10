@@ -6,15 +6,19 @@ from fastapi import APIRouter
 from redis.asyncio import Redis
 
 from src.application.common.dao import PlanDao
-from src.core.constants import PUBLIC_LANDING_PLANS_CACHE_TTL_SECONDS
+from src.application.use_cases.fleet.queries.servers import GetPlanServers
+from src.core.constants import (
+    PUBLIC_LANDING_PLANS_CACHE_KEY,
+    PUBLIC_LANDING_PLANS_CACHE_TTL_SECONDS,
+)
 from src.core.enums import Currency, PlanAvailability
 from src.web.schemas import PublicPlanLandingListResponse, PublicPlanLandingResponse
 
-from ._common import _normalize_decimal_str
+from ._common import _normalize_decimal_str, describe_plan_for_web
 
 router = APIRouter(tags=["Public - Plans"])
 
-_CACHE_KEY = "cache:public_landing_plans"
+_CACHE_KEY = PUBLIC_LANDING_PLANS_CACHE_KEY
 
 
 @router.get("/plans/public", response_model=PublicPlanLandingListResponse)
@@ -22,6 +26,7 @@ _CACHE_KEY = "cache:public_landing_plans"
 async def get_public_landing_plans(
     plan_dao: FromDishka[PlanDao],
     redis: FromDishka[Redis],
+    get_plan_servers: FromDishka[GetPlanServers],
 ) -> PublicPlanLandingListResponse:
     cached = await redis.get(_CACHE_KEY)
     if cached is not None:
@@ -56,7 +61,7 @@ async def get_public_landing_plans(
             PublicPlanLandingResponse(
                 public_code=plan.public_code,
                 name=plan.name,
-                description=plan.description,
+                description=await describe_plan_for_web(plan, get_plan_servers),
                 traffic_limit=plan.traffic_limit,
                 device_limit=plan.device_limit,
                 monthly_from_rub=_normalize_decimal_str(monthly_from),

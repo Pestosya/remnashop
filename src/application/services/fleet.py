@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional
+from typing import Callable, Final, Iterable, Optional
 
 from src.application.dto import (
     FleetChangesDto,
@@ -24,6 +24,12 @@ CONFIRM_DOWN = 2
 CONFIRM_UP = 2
 
 ANNOUNCE_MAX_LENGTH = 200
+
+# `{servers}` in a plan's description is replaced with the plan's servers
+SERVERS_PLACEHOLDER: Final[str] = "{servers}"
+# UTF-16 units a description may take on a purchase screen, and the least the list gets
+DESCRIPTION_BUDGET: Final[int] = 480
+SERVERS_MIN_BUDGET: Final[int] = 100
 
 _ALIVE = (FleetStatus.OK, FleetStatus.PARTIAL)
 
@@ -220,3 +226,62 @@ def server_statuses(state: FleetStateDto) -> list[tuple[str, FleetStatus]]:
         name = short_name(min((h.remark for h in hosts), key=len))
         servers.append((name, min(known, key=lambda status: rank[status])))
     return servers
+
+
+def servers_for_squads(
+    hosts: list[PanelHostDto],
+    squad_inbounds: dict[str, list[str]],
+    squads: Iterable[str],
+) -> list[str]:
+    """Names of the hosts a subscription with these squads gets, in the panel's order: the
+    enabled, visible hosts whose inbound belongs to one of the squads."""
+    inbounds = {inbound for squad in squads for inbound in squad_inbounds.get(squad, [])}
+    names = [
+        short_name(host.remark)
+        for host in hosts
+        if not host.is_disabled and not host.is_hidden and host.inbound_uuid in inbounds
+    ]
+    return list(dict.fromkeys(names))
+
+
+def utf16_len(text: str) -> int:
+    """Length the way Telegram counts it."""
+    return len(text.encode("utf-16-le")) // 2
+
+
+def describe_plan(
+    description: Optional[str],
+    servers: list[str],
+    more: Callable[[int], str],
+    budget: int = DESCRIPTION_BUDGET,
+) -> Optional[str]:
+    """A plan's description with its servers in it, so the list follows the panel instead of
+    being typed by hand.
+
+    `{servers}` in the typed text marks where the list goes; without the marker the list is
+    appended after the text, and an empty description is the list alone. The list is cut to
+    fit what the text leaves of `budget` (UTF-16 units): the purchase screens are banner
+    captions, which Telegram limits. `more(n)` words the "and n more" line.
+    """
+    text = (description or "").strip()
+    typed = text.replace(SERVERS_PLACEHOLDER, "")
+    room = max(SERVERS_MIN_BUDGET, budget - utf16_len(typed))
+
+    lines: list[str] = []
+    used = 0
+    for index, name in enumerate(servers):
+        rest = len(servers) - index - 1
+        reserve = utf16_len(more(rest)) + 1 if rest else 0
+        if used + utf16_len(name) + 1 + reserve > room:
+            lines.append(more(rest + 1))
+            break
+        lines.append(name)
+        used += utf16_len(name) + 1
+    listed = "\n".join(lines)
+
+    if SERVERS_PLACEHOLDER in text:
+        text = text.replace(SERVERS_PLACEHOLDER, listed).strip()
+    elif listed:
+        text = f"{text}\n\n{listed}" if text else listed
+
+    return text or None

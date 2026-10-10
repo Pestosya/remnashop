@@ -1469,6 +1469,9 @@ msg-subscription-details =
     </blockquote>
     }
 
+msg-subscription-servers =
+    .more = … и еще { $count }
+
 msg-subscription-duration =
     <b>⏳ Выберите длительность</b>
 

@@ -17,6 +17,10 @@ class PanelHostDto:
     is_disabled: bool = False
     # an auto-select entry rendered from a template has no server of its own to probe
     is_virtual: bool = False
+    # kept out of the subscriptions by the panel (only used inside auto-select entries)
+    is_hidden: bool = False
+    # the inbound the host belongs to: a squad gives access to a host through it
+    inbound_uuid: Optional[str] = None
 
 
 @dataclass(frozen=True, kw_only=True)

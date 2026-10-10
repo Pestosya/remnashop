@@ -25,8 +25,10 @@ from src.application.services.fleet import (
     server_names,
     target_of,
 )
+from src.application.use_cases.fleet.queries.servers import PANEL_SERVERS_KEY
 from src.application.use_cases.fleet.queries.state import load_fleet_state, save_fleet_state
 from src.core.config import AppConfig
+from src.core.constants import PUBLIC_LANDING_PLANS_CACHE_KEY
 from src.core.utils.time import datetime_now
 
 
@@ -97,6 +99,9 @@ class CheckFleet(Interactor[bool, Optional[FleetStateDto]]):
             await self.panel.set_host_disabled(uuid, True)
         for uuid in evaluation.to_restore:
             await self.panel.set_host_disabled(uuid, False)
+        if evaluation.to_hide or evaluation.to_restore:
+            # the purchase screens and the landing list the servers: show the change at once
+            await self.redis.delete(PANEL_SERVERS_KEY, PUBLIC_LANDING_PLANS_CACHE_KEY)
 
         i18n = self.translator_hub.get_translator_by_locale(self.config.default_locale)
         await self._sync_announce(fleet, evaluation, i18n)

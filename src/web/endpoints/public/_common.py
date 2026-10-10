@@ -1,7 +1,7 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import Annotated
+from typing import Annotated, Optional
 
 import jwt
 from dishka import FromDishka
@@ -10,7 +10,9 @@ from fastapi import Depends, HTTPException, Request, Response, status
 
 from src.application.common.dao import UserDao
 from src.application.common.dao.auth import AuthSessionDao
-from src.application.dto import UserDto
+from src.application.dto import PlanDto, UserDto
+from src.application.services.fleet import describe_plan
+from src.application.use_cases.fleet.queries.servers import GetPlanServers
 from src.core.config import AppConfig
 from src.core.constants import ACCESS_TOKEN_TTL_SECONDS, REFRESH_TOKEN_TTL_SECONDS
 from src.web.schemas import AuthResponse
@@ -125,3 +127,18 @@ async def _get_current_user(
 
 
 CurrentUser = Annotated[UserDto, Depends(_get_current_user)]
+
+
+# the web pages have no caption limit to fit into
+WEB_DESCRIPTION_BUDGET = 4000
+
+
+async def describe_plan_for_web(plan: PlanDto, get_plan_servers: GetPlanServers) -> Optional[str]:
+    """A plan's description with the servers the panel currently gives it, as plain text."""
+    servers = await get_plan_servers.system(plan.internal_squads)
+    return describe_plan(
+        description=plan.description,
+        servers=servers,
+        more=lambda count: f"… +{count}",
+        budget=WEB_DESCRIPTION_BUDGET,
+    )

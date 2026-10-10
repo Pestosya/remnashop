@@ -5,6 +5,7 @@ from src.application.common import Interactor
 from .commands.check import CheckFleet
 from .commands.compensation import CompensateOutage
 from .commands.settings import ToggleFleetOption
+from .queries.servers import GetPlanServers
 from .queries.state import GetFleetState
 
 FLEET_USE_CASES: Final[tuple[type[Interactor], ...]] = (
@@ -12,4 +13,5 @@ FLEET_USE_CASES: Final[tuple[type[Interactor], ...]] = (
     CompensateOutage,
     ToggleFleetOption,
     GetFleetState,
+    GetPlanServers,
 )
