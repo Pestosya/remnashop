@@ -157,6 +157,22 @@ async def on_goto_renew(
     )
 
 
+@router.message(
+    CommandStart(deep_link=True, ignore_case=True, magic=F.args == Deeplink.SUBSCRIPTION.value),
+)
+async def on_goto_subscription(
+    message: Message,
+    user: TelegramUserDto,
+    dialog_manager: DialogManager,
+) -> None:
+    logger.info(f"{user.log} Redirected to subscription menu")
+    await dialog_manager.start(
+        state=Subscription.MAIN,
+        mode=StartMode.RESET_STACK,
+        show_mode=ShowMode.DELETE_AND_SEND,
+    )
+
+
 @router.message(CommandStart(deep_link=True, ignore_case=True), F.text.contains(Deeplink.INVITE))
 async def on_goto_invite(
     message: Message,
