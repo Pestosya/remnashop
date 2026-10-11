@@ -11,9 +11,11 @@ from src.application.dto import TelegramUserDto
 from src.application.services.fleet import server_statuses
 from src.application.use_cases.fleet.queries.state import GetFleetState
 from src.application.use_cases.misc.queries.menu import GetMenuData
+from src.application.use_cases.points.exchange import GetPointsExchange
 from src.core.config import AppConfig
 from src.core.exceptions import MenuRenderError
 from src.core.utils.i18n_helpers import (
+    i18n_format_days,
     i18n_format_device_limit,
     i18n_format_expire_time,
     i18n_format_traffic_limit,
@@ -233,6 +235,7 @@ async def invite_getter(
         "points": user.points,
         "is_points_reward": settings.referral.reward.is_points,
         "has_points": True if user.points > 0 else False,
+        "exchange_enabled": settings.extra.points.exchange_enabled,
         "referral_url": referral_url,
         "withdraw": support_url,
         "referral_reset_enabled": int(settings.extra.referral_reset.enabled),
@@ -292,4 +295,81 @@ async def help_getter(
     return {
         "servers": servers,
         "support_url": bot_service.get_support_url(text=i18n.get("message.help")),
+    }
+
+
+POINTS_PLAN_KEY = "points_plan_id"
+POINTS_DAYS_KEY = "points_days"
+
+
+@inject
+async def points_getter(
+    dialog_manager: DialogManager,
+    user: TelegramUserDto,
+    i18n: FromDishka[TranslatorRunner],
+    settings_dao: FromDishka[SettingsDao],
+    get_points_exchange: FromDishka[GetPointsExchange],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """Exchange of points for a subscription: the balance and what it can buy."""
+    settings = await settings_dao.get()
+    exchange = await get_points_exchange(user, dialog_manager.dialog_data.get(POINTS_PLAN_KEY))
+
+    offers = []
+    for offer in exchange.offers:
+        key, kw = i18n_format_days(offer.days)
+        offers.append(
+            {
+                "days": offer.days,
+                "period": i18n.get(key, **kw),
+                "cost": offer.cost,
+                "affordable": int(offer.affordable),
+            }
+        )
+
+    return {
+        "points": exchange.points,
+        "rate": settings.extra.points.points_per_ruble,
+        "status": exchange.status,
+        "purchase_type": exchange.purchase_type,
+        "plan": i18n.get(exchange.plan.name) if exchange.plan else "",
+        "plans": [{"id": plan.id, "name": i18n.get(plan.name)} for plan in exchange.plans],
+        "offers": offers,
+        # a plan the user picked themselves can be picked again
+        "plan_chosen": POINTS_PLAN_KEY in dialog_manager.dialog_data,
+    }
+
+
+@inject
+async def points_confirm_getter(
+    dialog_manager: DialogManager,
+    user: TelegramUserDto,
+    i18n: FromDishka[TranslatorRunner],
+    get_points_exchange: FromDishka[GetPointsExchange],
+    **kwargs: Any,
+) -> dict[str, Any]:
+    exchange = await get_points_exchange(user, dialog_manager.dialog_data.get(POINTS_PLAN_KEY))
+    offer = exchange.get_offer(dialog_manager.dialog_data.get(POINTS_DAYS_KEY, 0))
+
+    if offer is None or exchange.plan is None:
+        # the plan or its durations changed under the user: nothing to confirm any more
+        return {
+            "available": 0,
+            "purchase_type": exchange.purchase_type,
+            "plan": "",
+            "period": "",
+            "cost": 0,
+            "points": exchange.points,
+            "remaining": exchange.points,
+        }
+
+    key, kw = i18n_format_days(offer.days)
+    return {
+        "available": int(offer.affordable),
+        "purchase_type": exchange.purchase_type,
+        "plan": i18n.get(exchange.plan.name),
+        "period": i18n.get(key, **kw),
+        "cost": offer.cost,
+        "points": exchange.points,
+        "remaining": exchange.points - offer.cost,
     }

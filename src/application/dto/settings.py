@@ -254,6 +254,14 @@ class RetentionSettingsDto(TrackableMixin):
 
 
 @dataclass(kw_only=True)
+class PointsSettingsDto(TrackableMixin):
+    # Users may pay for a subscription with referral points from the bot, without support.
+    exchange_enabled: bool = True
+    # How many points one ruble of the price costs.
+    points_per_ruble: int = 1
+
+
+@dataclass(kw_only=True)
 class FleetSettingsDto(TrackableMixin):
     # Periodic reachability check of the panel's hosts from Russian networks + admin alerts.
     enabled: bool = True
@@ -279,6 +287,7 @@ class ExtraSettingsDto(TrackableMixin):
     mini_app_reserve: bool = False
     retention: RetentionSettingsDto = field(default_factory=RetentionSettingsDto)
     fleet: FleetSettingsDto = field(default_factory=FleetSettingsDto)
+    points: PointsSettingsDto = field(default_factory=PointsSettingsDto)
 
 
 @dataclass(kw_only=True)

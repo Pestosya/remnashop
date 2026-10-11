@@ -43,6 +43,10 @@ class TransactionDaoImpl(TransactionDao):
 
         self.session.add(db_transaction)
         await self.session.flush()
+        # The row was built from dumped values, so its enum columns hold plain strings until
+        # they are read back. A purchase paid with points is created and completed within
+        # one session, which would otherwise hand that half-typed object to the payment flow.
+        await self.session.refresh(db_transaction)
 
         logger.debug(f"Created new transaction '{transaction.payment_id}'")
         return self._convert_to_dto(db_transaction)

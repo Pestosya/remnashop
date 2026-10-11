@@ -32,7 +32,7 @@ inline-invite =
     .start = 🚀 Присоединиться
 
 message =
-    .withdraw-points = Здравствуйте! Я бы хотел запросить обмен баллов.
+    .withdraw-points = Здравствуйте! Я бы хотел вывести баллы деньгами.
     .paysupport = Здравствуйте! Я бы хотел запросить возврат средств.
     .help = Здравствуйте! Мне нужна помощь.
 
@@ -355,6 +355,7 @@ gateway-type = { $gateway_type ->
     [URLPAY] UrlPay
     [WATA] WATA
     [VALUTIX] Valutix
+    [POINTS] Баллы
     *[OTHER] { $gateway_type }
 }
 

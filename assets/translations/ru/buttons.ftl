@@ -86,7 +86,8 @@ btn-invite =
     .copy = 📋 Скопировать ссылку
     .send = 📩 Пригласить
     .qr = 🧾 QR-код
-    .withdraw-points = 💎 Обменять баллы
+    .exchange-points = 💎 Обменять на подписку
+    .withdraw-points = 💵 Вывести деньгами
     .reset-referral = 🔄 Сбросить реф. ссылку
 
 btn-dashboard =
@@ -619,3 +620,11 @@ btn-fleet =
     .refresh = ♻️ Обновить экран
     .compensation = 🎁 Компенсация простоя
     .compensation-confirm = ✅ Начислить
+
+btn-points =
+    .duration = { $affordable ->
+        [1] { $period } — { $cost } 💎
+        *[0] 🔒 { $period } — { $cost } 💎
+    }
+    .confirm = ✅ Обменять баллы
+    .other-plan = 📦 Другой тариф

@@ -11,6 +11,8 @@ class MainMenu(StatesGroup):
     DEVICE_CONFIRM_REISSUE = State()
     INVITE = State()
     INVITE_ABOUT = State()
+    POINTS = State()
+    POINTS_CONFIRM = State()
     HELP = State()
 
 

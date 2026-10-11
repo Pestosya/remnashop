@@ -63,7 +63,7 @@ from src.core.enums import (
     SystemNotificationType,
     TransactionStatus,
 )
-from src.core.exceptions import PurchaseError
+from src.core.exceptions import InsufficientPointsError, PurchaseError
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
     i18n_format_device_limit,
@@ -83,6 +83,8 @@ class CreateDefaultPaymentGateway(Interactor[None, None]):
             created_any = False
 
             for gateway_type in PaymentGatewayType:
+                if gateway_type == PaymentGatewayType.POINTS:  # not a real gateway
+                    continue
                 if await self.gateway_dao.get_by_type(gateway_type):
                     continue
 
@@ -382,6 +384,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                         f"user '{user.remna_name}' — already transitioned"
                     )
                     return
+                await self._charge_points(user, transaction)
                 await self.uow.commit()
 
             elif new_status == TransactionStatus.REFUNDED:
@@ -429,6 +432,29 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
         await self._handle_success(user, transaction)
         logger.info(f"Payment succeeded '{payment_id}' for user {user.log}")
 
+    async def _charge_points(self, user: UserDto, transaction: TransactionDto) -> None:
+        """A purchase paid with points takes them in the very transaction that completes it:
+        either both happen or neither. Raising here rolls the status change back."""
+        points = transaction.pricing.points_spent
+        if not points:
+            return
+
+        remaining = await self.user_dao.spend_points(user.id, points)
+        if remaining is None:
+            logger.warning(
+                f"Not enough points for '{transaction.payment_id}', user '{user.remna_name}': "
+                f"'{points}' required"
+            )
+            raise InsufficientPointsError(required=points, available=user.points)
+
+        logger.info(f"Charged '{points}' points from user {user.log}, '{remaining}' left")
+
+    async def _refund_points(self, user: UserDto, transaction: TransactionDto) -> None:
+        points = transaction.pricing.points_spent
+        if points:
+            await self.user_dao.add_points(user.id, points)
+            logger.warning(f"Returned '{points}' points to user {user.log}: purchase failed")
+
     @staticmethod
     def _log_late_payment(transaction: TransactionDto, user: UserDto) -> None:
         if transaction.status == TransactionStatus.CANCELED:
@@ -456,10 +482,11 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
             is_trial_plan=transaction.plan_snapshot.is_trial,
             payment_id=transaction.payment_id,
             gateway_type=transaction.gateway_type,
-            final_amount=transaction.pricing.final_amount,
+            # points are shown as what was charged, not as the zero amount of money
+            final_amount=transaction.display_amount,
             discount_percent=transaction.pricing.discount_percent,
             original_amount=transaction.pricing.original_amount,
-            currency=transaction.currency.symbol,
+            currency=transaction.display_currency,
             #
             plan_name=(transaction.plan_snapshot.name, {}),
             plan_type=transaction.plan_snapshot.type,
@@ -494,6 +521,7 @@ class ProcessPayment(Interactor[ProcessPaymentDto, None]):
                 await self.transaction_dao.update_status(
                     transaction.payment_id, TransactionStatus.FAILED
                 )
+                await self._refund_points(user, transaction)
                 await self.uow.commit()
             await self.notifier.notify_system(
                 MessagePayloadDto(

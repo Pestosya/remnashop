@@ -197,6 +197,24 @@ class UserDaoImpl(UserDao):
             f"Trial available status for user_id '{user_id}' set to '{is_trial_available}'"
         )
 
+    async def spend_points(self, user_id: int, amount: int) -> Optional[int]:
+        """Take `amount` points if the user has them; returns the balance left, or None when
+        there were not enough. One statement, so two purchases cannot spend the same points."""
+        stmt = (
+            update(User)
+            .where(User.id == user_id, User.points >= amount)
+            .values(points=User.points - amount)
+            .returning(User.points)
+        )
+        remaining = await self.session.scalar(stmt)
+        logger.debug(f"Spent '{amount}' points of user_id='{user_id}', left '{remaining}'")
+        return remaining
+
+    async def add_points(self, user_id: int, amount: int) -> None:
+        stmt = update(User).where(User.id == user_id).values(points=User.points + amount)
+        await self.session.execute(stmt)
+        logger.debug(f"Added '{amount}' points to user_id='{user_id}'")
+
     async def set_bot_blocked_status(self, user_id: int, is_bot_blocked: bool) -> None:
         stmt = update(User).where(User.id == user_id).values(is_bot_blocked=is_bot_blocked)
         await self.session.execute(stmt)

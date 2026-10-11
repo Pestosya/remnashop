@@ -519,8 +519,8 @@ async def transaction_getter(
         "purchase_type": transaction.purchase_type,
         "transaction_status": transaction.status,
         "gateway_type": transaction.gateway_type,
-        "final_amount": transaction.pricing.final_amount,
-        "currency": transaction.currency.symbol,
+        "final_amount": transaction.display_amount,
+        "currency": transaction.display_currency,
         "discount_percent": transaction.pricing.discount_percent,
         "original_amount": transaction.pricing.original_amount,
         "created_at": transaction.created_at.strftime(DATETIME_VIEW_FORMAT),  # type: ignore[union-attr]

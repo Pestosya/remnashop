@@ -38,6 +38,7 @@ REMNAWAVE_MAX_VERSION: Final[Version] = Version("3.3.0")
 REPOSITORY: Final[str] = "https://github.com/snoups/remnashop"
 DOCS: Final[str] = "https://remnashop.mintlify.app"
 T_ME: Final[str] = "https://t.me/"
+POINTS_SYMBOL: Final[str] = "💎"
 API_V1: Final[str] = "/api/v1"
 BOT_WEBHOOK_PATH: Final[str] = "/telegram"
 PAYMENTS_WEBHOOK_PATH: Final[str] = "/payments"

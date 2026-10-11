@@ -3,7 +3,7 @@ from aiogram import F, Router
 from aiogram.filters import CommandStart
 from aiogram.types import CallbackQuery, Message
 from aiogram_dialog import DialogManager, ShowMode, StartMode
-from aiogram_dialog.widgets.kbd import Button
+from aiogram_dialog.widgets.kbd import Button, Select
 from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
@@ -15,6 +15,11 @@ from src.application.dto import (
     MessagePayloadDto,
     PlanSnapshotDto,
     TelegramUserDto,
+)
+from src.application.use_cases.points.exchange import (
+    ExchangePoints,
+    ExchangePointsDto,
+    GetPointsExchange,
 )
 from src.application.use_cases.referral.queries.code import GenerateReferralQr
 from src.application.use_cases.remnawave.commands.management import (
@@ -31,11 +36,18 @@ from src.application.use_cases.user.commands.profile_edit import ResetOwnReferra
 from src.application.use_cases.user.queries.plans import GetAvailableTrial
 from src.core.constants import USER_KEY
 from src.core.enums import MediaType
-from src.core.exceptions import CooldownError
+from src.core.exceptions import (
+    CooldownError,
+    InsufficientPointsError,
+    PointsExchangeUnavailableError,
+    PurchaseError,
+)
 from src.core.utils.i18n_helpers import i18n_format_expire_time
 from src.core.utils.time import get_traffic_reset_delta
 from src.telegram.keyboards import CALLBACK_CHANNEL_CONFIRM, CALLBACK_RULES_ACCEPT
 from src.telegram.states import MainMenu, Subscription
+
+from .getters import POINTS_DAYS_KEY, POINTS_PLAN_KEY
 
 router = Router(name=__name__)
 
@@ -352,3 +364,105 @@ async def on_reset_referral_code(
         )
         return
     await notifier.notify_user(user=user, i18n_key="ntf-invite.referral-reset")
+
+
+async def on_points_plan_select(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    selected_plan: int,
+) -> None:
+    dialog_manager.dialog_data[POINTS_PLAN_KEY] = selected_plan
+
+
+async def on_points_plans_back(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+) -> None:
+    dialog_manager.dialog_data.pop(POINTS_PLAN_KEY, None)
+
+
+@inject
+async def on_points_duration_select(
+    callback: CallbackQuery,
+    widget: Select,
+    dialog_manager: DialogManager,
+    selected_days: int,
+    get_points_exchange: FromDishka[GetPointsExchange],
+    notifier: FromDishka[Notifier],
+) -> None:
+    user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
+    exchange = await get_points_exchange(user, dialog_manager.dialog_data.get(POINTS_PLAN_KEY))
+    offer = exchange.get_offer(selected_days)
+
+    if offer is None:
+        return  # the offers changed: the window redraws with the current ones
+
+    if not offer.affordable:
+        await notifier.notify_user(
+            user=user,
+            payload=MessagePayloadDto(
+                i18n_key="ntf-points.not-enough",
+                i18n_kwargs={"missing": offer.cost - exchange.points},
+            ),
+        )
+        return
+
+    dialog_manager.dialog_data[POINTS_DAYS_KEY] = selected_days
+    await dialog_manager.switch_to(state=MainMenu.POINTS_CONFIRM)
+
+
+@inject
+async def on_points_exchange_confirm(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    get_points_exchange: FromDishka[GetPointsExchange],
+    exchange_points: FromDishka[ExchangePoints],
+    notifier: FromDishka[Notifier],
+) -> None:
+    user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
+    exchange = await get_points_exchange(user, dialog_manager.dialog_data.get(POINTS_PLAN_KEY))
+    days = dialog_manager.dialog_data.get(POINTS_DAYS_KEY, 0)
+
+    if exchange.plan is None or exchange.get_offer(days) is None:
+        await dialog_manager.switch_to(state=MainMenu.POINTS)
+        return
+
+    try:
+        result = await exchange_points(user, ExchangePointsDto(plan_id=exchange.plan.id, days=days))
+    except InsufficientPointsError as e:
+        await notifier.notify_user(
+            user=user,
+            payload=MessagePayloadDto(
+                i18n_key="ntf-points.not-enough",
+                i18n_kwargs={"missing": max(e.required - e.available, 1)},
+            ),
+        )
+        await dialog_manager.switch_to(state=MainMenu.POINTS)
+        return
+    except PointsExchangeUnavailableError:
+        logger.warning(f"{user.log} Points exchange was not available any more")
+        await notifier.notify_user(user=user, i18n_key="ntf-points.unavailable")
+        await dialog_manager.switch_to(state=MainMenu.POINTS)
+        return
+    except PurchaseError:
+        # the points are back on the balance and the user is on the failure screen
+        logger.error(f"{user.log} Points exchange failed while issuing the subscription")
+        return
+
+    logger.info(f"{user.log} Exchanged '{result.spent}' points, '{result.remaining}' left")
+    dialog_manager.dialog_data.pop(POINTS_DAYS_KEY, None)
+    # the payment flow has already opened the success screen: do not redraw this one over it
+    dialog_manager.show_mode = ShowMode.NO_UPDATE
+    # stays in the chat as a receipt; the success screen itself comes from the payment flow
+    await notifier.notify_user(
+        user=user,
+        payload=MessagePayloadDto(
+            i18n_key="ntf-points.exchanged",
+            i18n_kwargs={"spent": result.spent, "remaining": result.remaining},
+            disable_default_markup=False,
+            delete_after=None,
+        ),
+    )

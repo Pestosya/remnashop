@@ -96,6 +96,9 @@ class PaymentGatewayType(UpperStrEnum):
     ROBOKASSA = auto()
     URLPAY = auto()
     WATA = auto()
+    # Not a gateway of its own: marks transactions paid with referral points. It has no row
+    # in payment_gateways and never appears among the payment methods.
+    POINTS = auto()
 
 
 class PurchaseType(UpperStrEnum):
@@ -336,6 +339,8 @@ class Currency(UpperStrEnum):
             PaymentGatewayType.URLPAY: cls.RUB,
             PaymentGatewayType.WATA: cls.RUB,
             PaymentGatewayType.VALUTIX: cls.RUB,
+            # points are priced in rubles
+            PaymentGatewayType.POINTS: cls.RUB,
         }
 
         try:

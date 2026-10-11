@@ -64,6 +64,16 @@ class GatewayNotConfiguredError(Exception): ...
 class PurchaseError(Exception): ...
 
 
+class InsufficientPointsError(Exception):
+    def __init__(self, required: int, available: int) -> None:
+        self.required = required
+        self.available = available
+        super().__init__(f"Not enough points: '{required}' required, '{available}' available")
+
+
+class PointsExchangeUnavailableError(Exception): ...
+
+
 class TrialNotAvailableError(Exception): ...
 
 
