@@ -18,6 +18,7 @@ class Deeplink(StrEnum):
     INVITE = "invite"
     ADVERTISING = "ad"
     PROMOCODE = "promo"
+    RENEW = "renew"
 
     def build_url(self, base_url: str, data: Optional[str]) -> str:
         if not data:

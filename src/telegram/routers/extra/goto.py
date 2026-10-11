@@ -1,3 +1,5 @@
+from typing import Optional
+
 from aiogram import F, Router
 from aiogram.filters import CommandObject, CommandStart
 from aiogram.types import CallbackQuery, Message
@@ -15,13 +17,14 @@ from src.application.use_cases.promocode.queries.validate import (
 )
 from src.application.use_cases.user.queries.plans import GetAvailablePlanByCode
 from src.core.constants import GOTO_PREFIX, PAYMENT_PREFIX, TARGET_USER_ID
-from src.core.enums import Deeplink, PromocodeRewardType
+from src.core.enums import Deeplink, PromocodeRewardType, PurchaseType
 from src.core.exceptions import (
     PromocodeAlreadyActivatedError,
     PromocodeExpiredError,
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
+from src.telegram.routers.subscription.handlers import SHORTCUT_KEY
 from src.telegram.states import DashboardUser, MainMenu, Subscription, state_from_string
 
 router = Router(name=__name__)
@@ -119,6 +122,36 @@ async def on_goto_plan(
     ).start(
         state=Subscription.PLAN,
         data={"plan_id": plan.id},
+        mode=StartMode.RESET_STACK,
+        show_mode=ShowMode.DELETE_AND_SEND,
+    )
+
+
+@inject
+@router.message(
+    CommandStart(deep_link=True, ignore_case=True, magic=F.args == Deeplink.RENEW.value),
+)
+async def on_goto_renew(
+    message: Message,
+    user: TelegramUserDto,
+    dialog_manager: DialogManager,
+    subscription_dao: FromDishka[SubscriptionDao],
+) -> None:
+    """Skips the subscription menu and opens what its buttons would: renewal for a paid
+    subscription, buying for a trial or none. With no end date there is nothing to renew."""
+    current_subscription = await subscription_dao.get_current(user.id)
+
+    data: Optional[dict[str, str]] = None
+
+    if not current_subscription or current_subscription.is_trial:
+        data = {SHORTCUT_KEY: PurchaseType.NEW.value}
+    elif not current_subscription.is_unlimited:
+        data = {SHORTCUT_KEY: PurchaseType.RENEW.value}
+
+    logger.info(f"{user.log} Redirected to renewal with '{data}'")
+    await dialog_manager.start(
+        state=Subscription.MAIN,
+        data=data,
         mode=StartMode.RESET_STACK,
         show_mode=ShowMode.DELETE_AND_SEND,
     )
