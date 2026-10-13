@@ -1413,7 +1413,7 @@ msg-notifications-system-route-thread-id =
 
 
 # Subscription
-msg-subscription-main = <b>💳 Подписка</b>
+msg-subscription-main = <b>👑 Подписка</b>
 msg-subscription-plans = <b>📦 Выберите план</b>
 msg-subscription-new-success = Чтобы начать пользоваться нашим сервисом, нажмите кнопку <code>`{ btn-subscription.connect }`</code> и следуйте инструкциям!
 msg-subscription-renew-success = Ваша подписка продлена на { $added_duration }.

@@ -41,12 +41,14 @@ subscription = Window(
             id=f"{PAYMENT_PREFIX}{PurchaseType.NEW}",
             on_click=on_subscription_plans,
             when=~F["has_active_subscription"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
         Button(
             text=I18nFormat("btn-subscription.renew"),
             id=f"{PAYMENT_PREFIX}{PurchaseType.RENEW}",
             on_click=on_subscription_plans,
             when=F["has_active_subscription"] & F["is_not_unlimited"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
         Button(
             text=I18nFormat("btn-subscription.change"),
@@ -284,6 +286,7 @@ promocode_window = Window(
             id="confirm_promo",
             on_click=on_promocode_confirm,
             when=F["has_promo"],
+            style=Style(ButtonStyle.SUCCESS),
         ),
     ),
     SwitchTo(

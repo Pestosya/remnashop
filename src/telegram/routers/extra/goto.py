@@ -1,5 +1,3 @@
-from typing import Optional
-
 from aiogram import F, Router
 from aiogram.filters import CommandObject, CommandStart
 from aiogram.types import CallbackQuery, Message
@@ -17,14 +15,14 @@ from src.application.use_cases.promocode.queries.validate import (
 )
 from src.application.use_cases.user.queries.plans import GetAvailablePlanByCode
 from src.core.constants import GOTO_PREFIX, PAYMENT_PREFIX, TARGET_USER_ID
-from src.core.enums import Deeplink, PromocodeRewardType, PurchaseType
+from src.core.enums import Deeplink, PromocodeRewardType
 from src.core.exceptions import (
     PromocodeAlreadyActivatedError,
     PromocodeExpiredError,
     PromocodeNotAvailableError,
     PromocodeNotFoundError,
 )
-from src.telegram.routers.subscription.handlers import SHORTCUT_KEY
+from src.telegram.routers.subscription.handlers import purchase_shortcut
 from src.telegram.states import DashboardUser, MainMenu, Subscription, state_from_string
 
 router = Router(name=__name__)
@@ -32,19 +30,19 @@ router = Router(name=__name__)
 
 @router.callback_query(F.data.startswith(GOTO_PREFIX))
 async def on_goto(
-    callback: CallbackQuery, dialog_manager: DialogManager, user: TelegramUserDto
+    callback: CallbackQuery,
+    dialog_manager: DialogManager,
+    user: TelegramUserDto,
+    subscription_dao: FromDishka[SubscriptionDao],
 ) -> None:
     logger.info(f"{user.log} Try go to '{callback.data}'")
     data = callback.data.removeprefix(GOTO_PREFIX)  # type: ignore[union-attr]
 
     if data.startswith(PAYMENT_PREFIX):
-        # TODO: Implement a transition to a specific type of payment
-        # There shit with data...
-        await dialog_manager.bg(
-            user_id=user.telegram_id,
-            chat_id=user.telegram_id,
-        ).start(
+        # "renew" / "buy" under a notification: open that step, not the menu above it
+        await dialog_manager.start(
             state=Subscription.MAIN,
+            data=purchase_shortcut(await subscription_dao.get_current(user.id)),
             mode=StartMode.RESET_STACK,
             show_mode=ShowMode.DELETE_AND_SEND,
         )
@@ -137,17 +135,7 @@ async def on_goto_renew(
     dialog_manager: DialogManager,
     subscription_dao: FromDishka[SubscriptionDao],
 ) -> None:
-    """Skips the subscription menu and opens what its buttons would: renewal for a paid
-    subscription, buying for a trial or none. With no end date there is nothing to renew."""
-    current_subscription = await subscription_dao.get_current(user.id)
-
-    data: Optional[dict[str, str]] = None
-
-    if not current_subscription or current_subscription.is_trial:
-        data = {SHORTCUT_KEY: PurchaseType.NEW.value}
-    elif not current_subscription.is_unlimited:
-        data = {SHORTCUT_KEY: PurchaseType.RENEW.value}
-
+    data = purchase_shortcut(await subscription_dao.get_current(user.id))
     logger.info(f"{user.log} Redirected to renewal with '{data}'")
     await dialog_manager.start(
         state=Subscription.MAIN,

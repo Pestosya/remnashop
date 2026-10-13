@@ -8,7 +8,7 @@ from magic_filter import F
 from src.application.common.policy import Permission
 from src.application.use_cases.points.exchange import PointsExchangeStatus
 from src.core.constants import INLINE_QUERY_INVITE, PAYMENT_PREFIX
-from src.core.enums import BannerName
+from src.core.enums import BannerName, SubscriptionStatus
 from src.telegram.keyboards import build_buttons_row, connect_buttons
 from src.telegram.routers.dashboard.handlers import on_smart_search
 from src.telegram.states import Dashboard, MainMenu, Subscription
@@ -51,6 +51,7 @@ from .handlers import (
     on_points_plan_select,
     on_points_plans_back,
     on_reissue_subscription_confirm,
+    on_renew_expired,
     on_reset_referral_code,
     on_show_qr,
     on_text_button_click,
@@ -71,8 +72,17 @@ menu = Window(
     Row(
         Button(
             text=I18nFormat("btn-menu.connect-not-available"),
+            id="expired_renew",
+            on_click=on_renew_expired,
+            when=F["status"] == SubscriptionStatus.EXPIRED,
+            style=Style(ButtonStyle.DANGER),
+        ),
+        Button(
+            text=I18nFormat("btn-menu.connect-not-available"),
             id="not_available",
             on_click=show_reason,
+            when=F["status"] != SubscriptionStatus.EXPIRED,
+            style=Style(ButtonStyle.DANGER),
         ),
         when=F["has_subscription"] & ~F["connectable"],
     ),
@@ -93,23 +103,16 @@ menu = Window(
         ),
     ),
     Row(
-        SwitchTo(
-            text=I18nFormat("btn-menu.devices"),
-            id="devices",
-            state=MainMenu.DEVICES,
-            when=F["has_device_limit"],
-        ),
         Start(
             text=I18nFormat("btn-menu.subscription"),
             id=f"{PAYMENT_PREFIX}subscription",
             state=Subscription.MAIN,
         ),
-    ),
-    Row(
         SwitchTo(
-            text=I18nFormat("btn-menu.help"),
-            id="help",
-            state=MainMenu.HELP,
+            text=I18nFormat("btn-menu.devices"),
+            id="devices",
+            state=MainMenu.DEVICES,
+            when=F["has_device_limit"],
         ),
     ),
     Row(
@@ -128,18 +131,23 @@ menu = Window(
             id="send",
             when=~F["referral_enabled"],
         ),
+        WebApp(
+            text=I18nFormat("btn-menu.web-cabinet"),
+            url=Format("{web_cabinet_url}"),
+            when=F["web_enabled"],
+        ),
+    ),
+    Row(
+        SwitchTo(
+            text=I18nFormat("btn-menu.help"),
+            id="help",
+            state=MainMenu.HELP,
+        ),
         Url(
             text=I18nFormat("btn-menu.support"),
             id="support",
             url=Format("{support_url}"),
         ),
-    ),
-    Row(
-        WebApp(
-            text=I18nFormat("btn-menu.web-cabinet"),
-            url=Format("{web_cabinet_url}"),
-        ),
-        when=F["web_enabled"],
     ),
     *custom_buttons,
     Row(
@@ -200,7 +208,7 @@ devices = Window(
             text=I18nFormat("btn-devices.reissue"),
             id="reissue",
             state=MainMenu.DEVICE_CONFIRM_REISSUE,
-            style=Style(ButtonStyle.PRIMARY),
+            style=Style(ButtonStyle.DANGER),
             when=F["link_reset_enabled"],
         ),
     ),

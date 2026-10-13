@@ -30,6 +30,17 @@ CURRENT_METHOD_KEY = "selected_payment_method"
 SHORTCUT_KEY = "shortcut"  # start data: the purchase type to open at once, skipping the menu
 
 
+def purchase_shortcut(current_subscription: Optional[SubscriptionDto]) -> Optional[dict[str, str]]:
+    """Start data that skips the subscription menu and opens what its buttons would: renewal for
+    a paid subscription, buying for a trial or none. With no end date there is nothing to renew,
+    so the menu itself is shown (None)."""
+    if not current_subscription or current_subscription.is_trial:
+        return {SHORTCUT_KEY: PurchaseType.NEW.value}
+    if current_subscription.is_unlimited:
+        return None
+    return {SHORTCUT_KEY: PurchaseType.RENEW.value}
+
+
 class CachedPaymentData(TypedDict):
     payment_id: str
     payment_url: Optional[str]

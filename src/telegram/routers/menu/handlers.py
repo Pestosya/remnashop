@@ -45,6 +45,7 @@ from src.core.exceptions import (
 from src.core.utils.i18n_helpers import i18n_format_expire_time
 from src.core.utils.time import get_traffic_reset_delta
 from src.telegram.keyboards import CALLBACK_CHANNEL_CONFIRM, CALLBACK_RULES_ACCEPT
+from src.telegram.routers.subscription.handlers import purchase_shortcut
 from src.telegram.states import MainMenu, Subscription
 
 from .getters import POINTS_DAYS_KEY, POINTS_PLAN_KEY
@@ -228,6 +229,22 @@ async def on_reissue_subscription_confirm(
         return
     await notifier.notify_user(user=user, i18n_key="ntf-devices.reissued")
     await dialog_manager.switch_to(state=MainMenu.DEVICES)
+
+
+@inject
+async def on_renew_expired(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    subscription_dao: FromDishka[SubscriptionDao],
+) -> None:
+    """The red "expired" button of the main menu: straight to renewal (to buying after a trial)."""
+    user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
+    logger.info(f"{user.log} Goes to renewal from the expired button")
+    await dialog_manager.start(
+        state=Subscription.MAIN,
+        data=purchase_shortcut(await subscription_dao.get_current(user.id)),
+    )
 
 
 @inject

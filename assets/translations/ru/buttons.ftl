@@ -1,7 +1,7 @@
 btn-back =
     .general = ⬅️ Назад
     .menu = ↩️ Главное меню
-    .menu-return = ↩️ Вернуться в главное меню
+    .menu-return = ↩️ В главное меню
     .dashboard = ↩️ Вернуться в панель управления
     .referrals = 👪 К списку рефералов
 
@@ -23,7 +23,7 @@ btn-common =
     }
 
 btn-devices =
-    .delete-all = 🗑 Удалить все устройства
+    .delete-all = ❌ Удалить все устройства
     .reissue = 🔄 Перевыпустить подписку
     .confirm-delete = ✅ Да, удалить
     .confirm-reissue = ✅ Да, сбросить
@@ -62,32 +62,31 @@ btn-requirement =
     .channel-confirm = ✅ Подтвердить
 
 btn-menu =
-    .trial = 🎁 ПОПРОБОВАТЬ БЕСПЛАТНО
-    .trial-paid = 🚀 ПОПРОБОВАТЬ ЗА { $trial_price }
+    .trial = 🎁 Попробовать бесплатно
+    .trial-paid = 🎁 Попробовать за { $trial_price }
     .connect = 🚀 Подключиться
     .connect-reserve = 🔗 Подключиться (резерв)
     .devices = 📱 Устройства
-    .subscription = 💳 Подписка
+    .subscription = 👑 Подписка
     .invite = 👥 Пригласить
-    .support = 🆘 Поддержка
-    .web-cabinet = 🌐 Личный кабинет
-    .help = 🛟 Не подключается?
-    .dashboard = 🛠 Панель управления
+    .support = 🧑‍💻 Поддержка
+    .web-cabinet = 👤 Кабинет
+    .help = 🛟 Не работает?
+    .dashboard = 🧰 Панель управления
 
-    .connect-not-available =
-    ⚠️ { $status ->
-    [LIMITED] ПРЕВЫШЕН ЛИМИТ ТРАФИКА
-    [EXPIRED] СРОК ДЕЙСТВИЯ ИСТЕК
-    *[OTHER] ВАША ПОДПИСКА НЕ РАБОТАЕТ
-    } ⚠️
+    .connect-not-available = { $status ->
+    [LIMITED] ❗️ Трафик закончился
+    [EXPIRED] ⌛️ Срок истёк — продлить
+    *[OTHER] ❗️ Подписка не работает
+    }
 
 btn-invite =
     .about = ❓ Подробнее о награде
-    .copy = 📋 Скопировать ссылку
-    .send = 📩 Пригласить
-    .qr = 🧾 QR-код
+    .copy = 🔗 Скопировать ссылку
+    .send = 📨 Пригласить
+    .qr = 📲 QR-код
     .exchange-points = 💎 Обменять на подписку
-    .withdraw-points = 💵 Вывести деньгами
+    .withdraw-points = 🪙 Вывести деньгами
     .reset-referral = 🔄 Сбросить реф. ссылку
 
 btn-dashboard =
@@ -243,13 +242,13 @@ btn-broadcast =
     } { $created_at }
     
 btn-goto =
-    .subscription = 💳 Купить подписку
+    .subscription = 💸 Купить подписку
     .promocode = 🎟 Активировать промокод
     .invite = 👥 Пригласить
     .subscription-renew = 🔄 Продлить подписку
     .user-profile = 👤 Перейти к пользователю
     .referrer-profile = 🤝 Перейти к пригласителю
-    .contact-support = 📩 Перейти в поддержку
+    .contact-support = 🧑‍💻 Написать в поддержку
 
 btn-promocodes =
     .save = ✅ Сохранить
@@ -559,13 +558,13 @@ btn-importer =
     .import-active = ❇️ Импортировать активных
 
 btn-subscription =
-    .plan = 💳 Перейти к оформлению подписки
+    .plan = 🛒 Перейти к оформлению
     .new = 💸 Купить подписку
     .renew = 🔄 Продлить
-    .change = 🔃 Изменить
+    .change = ✏️ Изменить
     .promocode = 🎟 Активировать промокод
     .promocode-confirm = ✅ Подтвердить
-    .pay = 💳 Оплатить
+    .pay = 💰 Оплатить
     .get = 🎁 Получить бесплатно
     .back-plans = ⬅️ Назад к выбору плана
     .back-duration = ⬅️ Изменить длительность
