@@ -1,7 +1,7 @@
 """Animated icons on inline buttons.
 
-A button whose text starts with an emoji listed in `ICONS` is sent with that emoji as an animated
-custom emoji in front of the text (`icon_custom_emoji_id`) instead of the plain character. This
+A button whose text starts with an emoji listed in `ICONS` is sent with an animated outline icon
+in front of the text (`icon_custom_emoji_id`) instead of that plain character. This
 happens in one place, on the way out to Telegram, so every keyboard is covered: dialog windows,
 notifications, the owner's menu buttons.
 
@@ -26,36 +26,47 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from loguru import logger
 
 # Leading emoji (without the U+FE0F variation selector) -> custom emoji id.
-# All ids are from Telegram's own "Animated Emoji" set (RestrictedEmoji), 🔧 from "Topic Icons".
+# The ids are from the "SF Symbols" set (t.me/addemoji/SFSymbols): animated outline icons that
+# take the colour of the button text. The comment is the symbol each one shows.
 ICONS: Final[dict[str, str]] = {
-    "🚀": "5445284980978621387",
-    "🎁": "5199749070830197566",
-    "👑": "5467406098367521267",
-    "📱": "5407025283456835913",
-    "👥": "5372926953978341366",
-    "🧑‍💻": "5190458330719461749",
-    "👤": "5373012449597335010",
-    "🔧": "5348239232852836489",
-    "🧰": "5449428597922079323",
-    "⌛": "5451646226975955576",
-    "⏳": "5451732530048802485",
-    "❗": "5467928559664242360",
-    "💸": "5472030678633684592",
-    "🔄": "5264727218734524899",
-    "✏": "5334673106202010226",
-    "🎟": "5377599075237502153",
-    "💰": "5375296873982604963",
-    "🛒": "5431499171045581032",
-    "❌": "5465665476971471368",
-    "✅": "5427009714745517609",
-    "❓": "5467666648263564704",
-    "🔗": "5375129357373165375",
-    "📲": "5406809207947142040",
-    "📨": "5406631276042002796",
-    "💎": "5471952986970267163",
-    "🪙": "5379600444098093058",
-    "❤": "5449505950283078474",
-    "💬": "5465300082628763143",
+    "🚀": "6023761060786346622",  # bolt
+    "🔗": "6021344879689341042",  # link
+    "🎁": "6023826881160157558",  # gift
+    "👑": "6021428854889913572",  # crown
+    "📱": "6019245310696495518",  # devices
+    "👥": "6021678620123077295",  # person.badge.plus
+    "👤": "6021659919835469581",  # person.crop.circle
+    "🔧": "6021787003622791696",  # wrench
+    "🧑‍💻": "6023911174188308145",  # headset
+    "💬": "6019151079114021083",  # bubbles
+    "💰": "6030462253445160459",  # ruble
+    "💸": "6030410254276106984",  # creditcard
+    "🛒": "6030664675253820292",  # cart
+    "🔄": "5807492110059838726",  # arrow.2.circlepath
+    "✏": "6026080811277621020",  # square.and.pencil
+    "🎟": "6021594546138257831",  # tag
+    "✅": "6019175208240289774",  # checkmark.seal
+    "❌": "5807692706507399432",  # xmark
+    "🗑": "6021413766669801212",  # trash
+    "❓": "5807800879553715710",  # questionmark.circle
+    "📋": "6021445064096486884",  # doc.on.doc
+    "📲": "6021757407003154108",  # viewfinder
+    "📨": "6019461768458279173",  # paperplane
+    "💎": "6028549648673675429",  # diamond
+    "🪙": "6030352469786105758",  # banknote
+    "⌛": "5807879906951960923",  # hourglass
+    "⏳": "5807879906951960923",  # hourglass
+    "❗": "6019102674832595118",  # exclamationmark.triangle
+    "⚠": "6019102674832595118",  # exclamationmark.triangle
+    "🧰": "6021582331251268218",  # gearshape
+    "⬅": "5807899225714858124",  # arrowshape.turn.up.left
+    "↩": "6023896773162967617",  # house
+    "▶": "5807829874877930085",  # chevron.right
+    "◀": "5807792908094413296",  # chevron.left
+    "❤": "6023852792697854544",  # heart
+    "📦": "6024106569430472546",  # shippingbox
+    "🔒": "6019568309417023812",  # lock
+    "🤝": "6021690418398239007",  # person.2
 }
 
 PAUSE: Final[int] = 3600

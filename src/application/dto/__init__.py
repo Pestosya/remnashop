@@ -4,7 +4,6 @@ from .broadcast import BroadcastDto, BroadcastMessageDto
 from .build import BuildInfoDto
 from .fleet import (
     FleetChangesDto,
-    FleetEntryDto,
     FleetHostStateDto,
     FleetStateDto,
     PanelHostDto,
@@ -98,7 +97,6 @@ __all__ = [
     "ExtraSettingsDto",
     "FleetSettingsDto",
     "FleetChangesDto",
-    "FleetEntryDto",
     "FleetHostStateDto",
     "FleetStateDto",
     "PanelHostDto",

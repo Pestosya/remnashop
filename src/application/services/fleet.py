@@ -6,7 +6,6 @@ from typing import Callable, Final, Iterable, Optional
 
 from src.application.dto import (
     FleetChangesDto,
-    FleetEntryDto,
     FleetHostStateDto,
     FleetStateDto,
     PanelHostDto,
@@ -173,7 +172,7 @@ def evaluate(
     changes.all_down = bool(changes.down) and not has_alive
 
     evaluation = FleetEvaluationDto(
-        state=FleetStateDto(checked_at=now, hosts=states, entries=_entries(hosts, hidden)),
+        state=FleetStateDto(checked_at=now, hosts=states),
         changes=changes,
     )
     # hiding is pointless (and leaves an empty subscription) when nothing else works
@@ -210,50 +209,33 @@ def server_names(state: FleetStateDto) -> tuple[list[str], list[str]]:
     return down, working
 
 
-def _entries(hosts: list[PanelHostDto], hidden: set[str]) -> list[FleetEntryDto]:
-    """The subscriptions' entries in the panel's order: what users see, plus what the
-    automation has hidden itself (so that it is shown as down, not silently gone)."""
-    return [
-        FleetEntryDto(remark=host.remark, hosts=list(host.pool) or [host.uuid])
-        for host in hosts
-        if not host.is_hidden and (not host.is_disabled or host.uuid in hidden)
-    ]
-
-
 _RANK = {FleetStatus.OK: 0, FleetStatus.PARTIAL: 1, FleetStatus.DOWN: 2}
+LTE_MARK: Final[str] = "LTE"
+LTE_NAME: Final[str] = "🌐 LTE"
+
+
+def general_name(remark: str) -> str:
+    """The place an entry belongs to, without the protocol in front:
+    '🇦🇹 ⚡ XHTTP | Австрия ⚡' -> '🇦🇹 Австрия'. Every whitelist-bypass entry is just 'LTE'."""
+    tokens = short_name(remark).split()
+    if LTE_MARK in tokens:
+        return LTE_NAME
+    if "|" in tokens:
+        place = tokens[len(tokens) - tokens[::-1].index("|") :]
+        flag = tokens[:1] if not any(ch.isalnum() for ch in tokens[0]) else []
+        return " ".join(flag + place)
+    return " ".join(tokens)
 
 
 def server_statuses(state: FleetStateDto) -> list[tuple[str, FleetStatus]]:
-    """Lines for the users' help menu: every entry of the subscription with its state. An
-    auto-select entry is as good as the best host it chooses from. Entries the check knows
-    nothing about are left out."""
-    if not state.entries:
-        return _server_statuses_by_address(state)
-
-    known = {host.uuid: host.status for host in state.hosts if host.status in _RANK}
-    lines: list[tuple[str, FleetStatus]] = []
-    for entry in state.entries:
-        statuses = [known[uuid] for uuid in entry.hosts if uuid in known]
-        if statuses:
-            lines.append((short_name(entry.remark), min(statuses, key=_RANK.__getitem__)))
-    return lines
-
-
-def _server_statuses_by_address(state: FleetStateDto) -> list[tuple[str, FleetStatus]]:
-    """For a state stored before entries were kept: one line per server address."""
-    groups: dict[str, list[FleetHostStateDto]] = {}
+    """Lines for the users' help menu: one per place, under its general name and with the best
+    status among its entries (a server whose plain entry is cut may still work through XHTTP).
+    Entries the check knows nothing about are left out."""
+    places: dict[str, list[FleetStatus]] = {}
     for host in state.hosts:
-        groups.setdefault(host.address, []).append(host)
-
-    rank = {FleetStatus.OK: 0, FleetStatus.PARTIAL: 1, FleetStatus.DOWN: 2}
-    servers: list[tuple[str, FleetStatus]] = []
-    for hosts in groups.values():
-        known = [h.status for h in hosts if h.status in rank]
-        if not known:
-            continue
-        name = short_name(min((h.remark for h in hosts), key=len))
-        servers.append((name, min(known, key=lambda status: rank[status])))
-    return servers
+        if host.status in _RANK:
+            places.setdefault(general_name(host.remark), []).append(host.status)
+    return [(name, min(statuses, key=_RANK.__getitem__)) for name, statuses in places.items()]
 
 
 def servers_for_squads(

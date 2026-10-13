@@ -23,7 +23,7 @@ btn-common =
     }
 
 btn-devices =
-    .delete-all = ❌ Удалить все устройства
+    .delete-all = 🗑 Удалить все устройства
     .reissue = 🔄 Перевыпустить подписку
     .confirm-delete = ✅ Да, удалить
     .confirm-reissue = ✅ Да, сбросить
@@ -82,7 +82,7 @@ btn-menu =
 
 btn-invite =
     .about = ❓ Подробнее о награде
-    .copy = 🔗 Скопировать ссылку
+    .copy = 📋 Скопировать ссылку
     .send = 📨 Пригласить
     .qr = 📲 QR-код
     .exchange-points = 💎 Обменять на подписку
