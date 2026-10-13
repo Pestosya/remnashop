@@ -141,6 +141,7 @@ class ButtonIconsMiddleware(BaseRequestMiddleware):
             self._pause(error.message)
             return await make_request(bot, method)
 
-        if not _icons_kept(response.result):
+        # aiogram hands the method's result down the chain, not the Response its types promise
+        if not _icons_kept(getattr(response, "result", response)):
             self._pause("Telegram dropped the icons from a sent keyboard")
         return response
