@@ -8,11 +8,12 @@ from loguru import logger
 from src.application.common import BotService, Remnawave, TranslatorRunner
 from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
-from src.application.services.fleet import server_statuses
+from src.application.services.fleet import server_statuses, utf16_len
 from src.application.use_cases.fleet.queries.state import GetFleetState
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.application.use_cases.points.exchange import GetPointsExchange
 from src.core.config import AppConfig
+from src.core.constants import TEXT_MEDIA_MAX_LENGTH
 from src.core.exceptions import MenuRenderError
 from src.core.utils.i18n_helpers import (
     i18n_format_days,
@@ -286,10 +287,26 @@ async def help_getter(
 ) -> dict[str, Any]:
     """Troubleshooting menu: what to try, and what the last reachability check says."""
     state = await get_fleet_state(user)
+    statuses = server_statuses(state)
     lines = [
-        i18n.get("msg-menu-help.server", name=name, status=status)
-        for name, status in server_statuses(state)
+        i18n.get("msg-menu-help.server", name=name, status=status) for name, status in statuses
     ]
+
+    # the screen is a banner caption: what does not fit is said shorter, then cut
+    budget = TEXT_MEDIA_MAX_LENGTH - utf16_len(i18n.get("msg-menu-help.main", servers="")) - 40
+    if utf16_len("\n".join(lines)) > budget:
+        lines = [
+            i18n.get("msg-menu-help.server-short", name=name, status=status)
+            for name, status in statuses
+        ]
+        legend = i18n.get("msg-menu-help.legend")
+        budget -= utf16_len(legend) + 1
+        while lines and utf16_len("\n".join(lines)) > budget:
+            lines.pop()
+        if len(lines) < len(statuses):
+            lines.append(i18n.get("msg-menu-help.more", count=len(statuses) - len(lines)))
+        lines.append(legend)
+
     servers = i18n.get("msg-menu-help.servers", servers="\n".join(lines)) + "\n\n" if lines else ""
 
     return {

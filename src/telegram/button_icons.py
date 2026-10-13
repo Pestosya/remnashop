@@ -26,7 +26,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, Message
 from loguru import logger
 
 # Leading emoji (without the U+FE0F variation selector) -> custom emoji id.
-# All ids are from Telegram's own "Animated Emoji" set (RestrictedEmoji), 🛟 from "Topic Icons".
+# All ids are from Telegram's own "Animated Emoji" set (RestrictedEmoji), 🔧 from "Topic Icons".
 ICONS: Final[dict[str, str]] = {
     "🚀": "5445284980978621387",
     "🎁": "5199749070830197566",
@@ -35,7 +35,7 @@ ICONS: Final[dict[str, str]] = {
     "👥": "5372926953978341366",
     "🧑‍💻": "5190458330719461749",
     "👤": "5373012449597335010",
-    "🛟": "5366577141183954305",
+    "🔧": "5348239232852836489",
     "🧰": "5449428597922079323",
     "⌛": "5451646226975955576",
     "⏳": "5451732530048802485",

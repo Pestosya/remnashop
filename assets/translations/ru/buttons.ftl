@@ -71,7 +71,7 @@ btn-menu =
     .invite = 👥 Пригласить
     .support = 🧑‍💻 Поддержка
     .web-cabinet = 👤 Кабинет
-    .help = 🛟 Не работает?
+    .help = 🔧 Не работает?
     .dashboard = 🧰 Панель управления
 
     .connect-not-available = { $status ->

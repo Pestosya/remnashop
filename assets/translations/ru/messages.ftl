@@ -1873,7 +1873,7 @@ msg-fleet-host =
 
 msg-menu-help =
     .main =
-    <b>🛟 Не подключается?</b>
+    <b>🔧 Не подключается?</b>
 
     { $servers }<b>Что попробовать:</b>
 
@@ -1890,10 +1890,20 @@ msg-menu-help =
     { $servers }
 
     .server = { $status ->
-    [OK] ✅ { $name } — работает
-    [PARTIAL] ⚠️ { $name } — работает не у всех операторов
+    [OK] ✅ { $name }
+    [PARTIAL] ⚠️ { $name } — не у всех операторов
     *[DOWN] ❌ { $name } — временно недоступен
     }
+
+    .server-short = { $status ->
+    [OK] ✅ { $name }
+    [PARTIAL] ⚠️ { $name }
+    *[DOWN] ❌ { $name }
+    }
+
+    .legend = <i>⚠️ работает не у всех операторов, ❌ временно недоступен</i>
+
+    .more = … и ещё { $count }
 
 msg-menu-points =
     .main =

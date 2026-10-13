@@ -32,6 +32,9 @@ class RemnaPanelFleet(PanelFleet):
 
     async def get_hosts(self) -> list[PanelHostDto]:
         hosts = await self._request("GET", "hosts")
+        pools = await self._pools(
+            {h["xrayJsonTemplateUuid"] for h in hosts if h.get("xrayJsonTemplateUuid")}
+        )
         return [
             PanelHostDto(
                 uuid=host["uuid"],
@@ -43,9 +46,28 @@ class RemnaPanelFleet(PanelFleet):
                 is_virtual=bool(host.get("xrayJsonTemplateUuid")),
                 is_hidden=bool(host.get("isHidden")),
                 inbound_uuid=(host.get("inbound") or {}).get("configProfileInboundUuid"),
+                pool=tuple(pools.get(host.get("xrayJsonTemplateUuid") or "", ())),
             )
             for host in sorted(hosts, key=lambda h: h.get("viewPosition") or 0)
         ]
+
+    async def _pools(self, templates: set[str]) -> dict[str, list[str]]:
+        """Host uuids each auto-select template injects (the servers it balances over)."""
+        pools: dict[str, list[str]] = {}
+        for uuid in templates:
+            try:
+                template = await self._request("GET", f"subscription-templates/{uuid}")
+            except Exception as e:  # the entry is then shown without a state, nothing more
+                logger.warning(f"Template '{uuid}' of an auto-select host is unreadable: {e!r}")
+                continue
+            body = template.get("templateJson") or {}
+            pools[uuid] = [
+                value
+                for inject in (body.get("remnawave") or {}).get("injectHosts") or []
+                if (inject.get("selector") or {}).get("type") == "uuids"
+                for value in inject["selector"].get("values") or []
+            ]
+        return pools
 
     async def get_squad_inbounds(self) -> dict[str, list[str]]:
         response = await self._request("GET", "internal-squads")

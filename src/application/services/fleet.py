@@ -6,6 +6,7 @@ from typing import Callable, Final, Iterable, Optional
 
 from src.application.dto import (
     FleetChangesDto,
+    FleetEntryDto,
     FleetHostStateDto,
     FleetStateDto,
     PanelHostDto,
@@ -172,7 +173,7 @@ def evaluate(
     changes.all_down = bool(changes.down) and not has_alive
 
     evaluation = FleetEvaluationDto(
-        state=FleetStateDto(checked_at=now, hosts=states),
+        state=FleetStateDto(checked_at=now, hosts=states, entries=_entries(hosts, hidden)),
         changes=changes,
     )
     # hiding is pointless (and leaves an empty subscription) when nothing else works
@@ -209,10 +210,37 @@ def server_names(state: FleetStateDto) -> tuple[list[str], list[str]]:
     return down, working
 
 
+def _entries(hosts: list[PanelHostDto], hidden: set[str]) -> list[FleetEntryDto]:
+    """The subscriptions' entries in the panel's order: what users see, plus what the
+    automation has hidden itself (so that it is shown as down, not silently gone)."""
+    return [
+        FleetEntryDto(remark=host.remark, hosts=list(host.pool) or [host.uuid])
+        for host in hosts
+        if not host.is_hidden and (not host.is_disabled or host.uuid in hidden)
+    ]
+
+
+_RANK = {FleetStatus.OK: 0, FleetStatus.PARTIAL: 1, FleetStatus.DOWN: 2}
+
+
 def server_statuses(state: FleetStateDto) -> list[tuple[str, FleetStatus]]:
-    """One line per server for the users' help menu: the server's name and the best status
-    among its hosts (a server whose plain entry is cut may still work through another one).
-    Servers the check knows nothing about are left out."""
+    """Lines for the users' help menu: every entry of the subscription with its state. An
+    auto-select entry is as good as the best host it chooses from. Entries the check knows
+    nothing about are left out."""
+    if not state.entries:
+        return _server_statuses_by_address(state)
+
+    known = {host.uuid: host.status for host in state.hosts if host.status in _RANK}
+    lines: list[tuple[str, FleetStatus]] = []
+    for entry in state.entries:
+        statuses = [known[uuid] for uuid in entry.hosts if uuid in known]
+        if statuses:
+            lines.append((short_name(entry.remark), min(statuses, key=_RANK.__getitem__)))
+    return lines
+
+
+def _server_statuses_by_address(state: FleetStateDto) -> list[tuple[str, FleetStatus]]:
+    """For a state stored before entries were kept: one line per server address."""
     groups: dict[str, list[FleetHostStateDto]] = {}
     for host in state.hosts:
         groups.setdefault(host.address, []).append(host)

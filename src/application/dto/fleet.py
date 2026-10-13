@@ -21,6 +21,8 @@ class PanelHostDto:
     is_hidden: bool = False
     # the inbound the host belongs to: a squad gives access to a host through it
     inbound_uuid: Optional[str] = None
+    # an auto-select entry: the hosts its template balances over
+    pool: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -58,9 +60,21 @@ class FleetHostStateDto:
 
 
 @dataclass(kw_only=True)
+class FleetEntryDto:
+    """One line of a subscription as the user sees it, and the hosts whose state it depends
+    on: itself, or for an auto-select entry the hosts it chooses from."""
+
+    remark: str
+    hosts: list[str] = field(default_factory=list)  # host uuids
+
+
+@dataclass(kw_only=True)
 class FleetStateDto:
     checked_at: Optional[datetime] = None
     hosts: list[FleetHostStateDto] = field(default_factory=list)
+    # every entry of the subscriptions, in the panel's order (empty in a state stored before
+    # entries were kept)
+    entries: list[FleetEntryDto] = field(default_factory=list)
 
     def get(self, uuid: str) -> Optional[FleetHostStateDto]:
         return next((h for h in self.hosts if h.uuid == uuid), None)
