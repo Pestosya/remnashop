@@ -27,6 +27,8 @@ ANNOUNCE_MAX_LENGTH = 200
 
 # `{servers}` in a plan's description is replaced with the plan's servers
 SERVERS_PLACEHOLDER: Final[str] = "{servers}"
+# where the headings of the subscription list point (see `is_separator`)
+SEPARATOR_ADDRESSES: Final[frozenset[str]] = frozenset({"127.0.0.1", "0.0.0.0", "::1"})
 # UTF-16 units a description may take on a purchase screen, and the least the list gets
 DESCRIPTION_BUDGET: Final[int] = 480
 SERVERS_MIN_BUDGET: Final[int] = 100
@@ -44,7 +46,7 @@ class FleetEvaluationDto:
 
 
 def target_of(host: PanelHostDto) -> Optional[ProbeTargetDto]:
-    if host.is_virtual or not host.sni or not host.address or not host.port:
+    if host.is_virtual or is_separator(host) or not host.sni or not host.address or not host.port:
         return None
     return ProbeTargetDto(address=host.address, port=host.port, sni=host.sni)
 
@@ -238,18 +240,27 @@ def server_statuses(state: FleetStateDto) -> list[tuple[str, FleetStatus]]:
     return [(name, min(statuses, key=_RANK.__getitem__)) for name, statuses in places.items()]
 
 
+def is_separator(host: PanelHostDto) -> bool:
+    """A heading in the subscription list ('━━━━ 🌐 LTE ━━━━'), not a server: such entries
+    point at the loopback address, so they lead nowhere."""
+    return host.address in SEPARATOR_ADDRESSES
+
+
 def servers_for_squads(
     hosts: list[PanelHostDto],
     squad_inbounds: dict[str, list[str]],
     squads: Iterable[str],
 ) -> list[str]:
     """Names of the hosts a subscription with these squads gets, in the panel's order: the
-    enabled, visible hosts whose inbound belongs to one of the squads."""
+    enabled, visible hosts whose inbound belongs to one of the squads. Headings are left out."""
     inbounds = {inbound for squad in squads for inbound in squad_inbounds.get(squad, [])}
     names = [
         short_name(host.remark)
         for host in hosts
-        if not host.is_disabled and not host.is_hidden and host.inbound_uuid in inbounds
+        if not host.is_disabled
+        and not host.is_hidden
+        and not is_separator(host)
+        and host.inbound_uuid in inbounds
     ]
     return list(dict.fromkeys(names))
 
