@@ -25,6 +25,7 @@ from .getters import (
 from .handlers import (
     on_duration_select,
     on_get_subscription,
+    on_pay_with_points,
     on_payment_method_select,
     on_plan_select,
     on_subscription_plans,
@@ -169,6 +170,19 @@ payment_method = Window(
             items="payment_methods",
             type_factory=PaymentGatewayType,
             on_click=on_payment_method_select,
+        ),
+    ),
+    Row(
+        Button(
+            text=I18nFormat(
+                "btn-subscription.pay-points",
+                cost=F["points_cost"],
+                missing=F["points_missing"],
+                affordable=F["points_affordable"],
+            ),
+            id=f"{PAYMENT_PREFIX}points",
+            on_click=on_pay_with_points,
+            when=F["points_offered"],
         ),
     ),
     Row(

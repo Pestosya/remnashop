@@ -6,7 +6,7 @@ msg-main-menu =
     { hdr-subscription }
     { $status ->
     [ACTIVE]
-    { frg-subscription }
+    { frg-subscription-menu }
     [EXPIRED]
     <blockquote>
     • Срок действия истек.
@@ -1452,6 +1452,10 @@ msg-subscription-details =
     [0] { empty }
     *[HAS] • <b>Длительность</b>: { $period }
     }
+    { $new_expire ->
+    [0] { empty }
+    *[HAS] • <b>Будет действовать</b>: { $new_expire }
+    }
     { $final_amount ->
     [0] { empty }
     *[HAS] • <b>Стоимость</b>: { frg-payment-amount }
@@ -1886,8 +1890,13 @@ msg-menu-help =
     Не помогло — напишите в поддержку.
 
     .servers =
-    <b>Серверы сейчас:</b>
+    <b>Серверы сейчас</b> <i>(проверено { $minutes ->
+        [0] только что
+        *[other] { $minutes } мин назад
+        })</i>:
     { $servers }
+
+    .stale = <i>⏳ Статусы серверов сейчас не обновляются. Советы ниже помогают и без них.</i>
 
     .server = { $status ->
     [OK] ✅ { $name }
@@ -1936,6 +1945,7 @@ msg-menu-points =
     <blockquote>
     • <b>Спишется</b>: { $cost } 💎
     • <b>Останется</b>: { $remaining } 💎
+    • <b>Подписка будет действовать</b>: { $new_expire }
     </blockquote>
     *[0] Этот вариант больше недоступен. Вернитесь назад и выберите срок заново.
     }

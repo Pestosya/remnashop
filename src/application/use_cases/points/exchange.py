@@ -66,6 +66,17 @@ class PointsExchangeDto:
     def get_offer(self, days: int) -> Optional[PointsOfferDto]:
         return next((offer for offer in self.offers if offer.days == days), None)
 
+    def offer_for(
+        self, plan_id: int, days: int, purchase_type: PurchaseType
+    ) -> Optional[PointsOfferDto]:
+        """The offer for a purchase chosen in the regular flow, if points can pay for it: the
+        same plan, duration and kind of purchase. Switching plans is never paid with points."""
+        if self.status != PointsExchangeStatus.AVAILABLE or self.plan is None:
+            return None
+        if self.plan.id != plan_id or self.purchase_type != purchase_type:
+            return None
+        return self.get_offer(days)
+
 
 class GetPointsExchange(Interactor[Optional[int], PointsExchangeDto]):
     """What a user can get for their points right now.

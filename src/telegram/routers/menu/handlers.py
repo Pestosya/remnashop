@@ -1,3 +1,5 @@
+from typing import Any
+
 from adaptix import Retort
 from aiogram import F, Router
 from aiogram.filters import CommandStart
@@ -34,7 +36,12 @@ from src.application.use_cases.subscription.commands.purchase import (
 )
 from src.application.use_cases.user.commands.profile_edit import ResetOwnReferralCode
 from src.application.use_cases.user.queries.plans import GetAvailableTrial
-from src.core.constants import USER_KEY
+from src.core.constants import (
+    POINTS_DAYS_KEY,
+    POINTS_FROM_PAYMENT_KEY,
+    POINTS_PLAN_KEY,
+    USER_KEY,
+)
 from src.core.enums import MediaType
 from src.core.exceptions import (
     CooldownError,
@@ -48,7 +55,17 @@ from src.telegram.keyboards import CALLBACK_CHANNEL_CONFIRM, CALLBACK_RULES_ACCE
 from src.telegram.routers.subscription.handlers import purchase_shortcut
 from src.telegram.states import MainMenu, Subscription
 
-from .getters import POINTS_DAYS_KEY, POINTS_PLAN_KEY
+# what a caller may hand to the menu dialog when it opens one of its screens
+MENU_START_KEYS = (POINTS_PLAN_KEY, POINTS_DAYS_KEY, POINTS_FROM_PAYMENT_KEY)
+
+
+async def on_menu_start(start_data: Any, dialog_manager: DialogManager) -> None:
+    """The payment screen opens the points confirmation with the plan and days already chosen."""
+    if isinstance(start_data, dict):
+        dialog_manager.dialog_data.update(
+            {key: start_data[key] for key in MENU_START_KEYS if key in start_data}
+        )
+
 
 router = Router(name=__name__)
 

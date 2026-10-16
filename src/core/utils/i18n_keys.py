@@ -12,6 +12,9 @@ class UtilKey(StrEnum):
     UNKNOWN = "unknown"
     UNIT_UNLIMITED = "unit-unlimited"
     UNIT_DEVICE = "unit-device"
+    DATE = "date-long"
+    DATE_ENDLESS = "date-endless"
+    DATE_UNTIL = "date-until"
 
 
 class ByteUnitKey(StrEnum):

@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from decimal import ROUND_HALF_UP, ROUND_UP, Decimal
 from typing import Final, Optional, Union
 
@@ -133,3 +133,28 @@ def i18n_format_expire_time(expiry: Union[timedelta, datetime]) -> list[tuple[st
         parts.append((TimeUnitKey.MINUTE, {"value": minutes}))
 
     return parts or [(UtilKey.UNKNOWN, {"value": 0})]
+
+
+# users see dates in Moscow time: most of them live in it, and a date is all they see
+DISPLAY_TIMEZONE: Final[timezone] = timezone(timedelta(hours=3), "MSK")
+
+
+def i18n_format_date(value: datetime) -> tuple[str, dict[str, int]]:
+    """'7 ноября 2026'. A subscription without an end has no date to show."""
+    if value.year == UNLIMITED_EXPIRE_YEAR:
+        return UtilKey.DATE_ENDLESS, {}
+    local = value.astimezone(DISPLAY_TIMEZONE)
+    return UtilKey.DATE, {"day": local.day, "month": local.month, "year": local.year}
+
+
+def i18n_format_until(value: datetime) -> tuple[str, dict[str, int]]:
+    """'до 7 ноября 2026', or 'бессрочно' for a subscription without an end."""
+    if value.year == UNLIMITED_EXPIRE_YEAR:
+        return UtilKey.DATE_UNTIL, {"endless": 1}
+    local = value.astimezone(DISPLAY_TIMEZONE)
+    return UtilKey.DATE_UNTIL, {
+        "endless": 0,
+        "day": local.day,
+        "month": local.month,
+        "year": local.year,
+    }

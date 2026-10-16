@@ -1,7 +1,7 @@
 """Decisions of the reachability automation. Pure functions: no I/O."""
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Final, Iterable, Optional
 
 from src.application.dto import (
@@ -27,10 +27,14 @@ ANNOUNCE_MAX_LENGTH = 200
 
 # `{servers}` in a plan's description is replaced with the plan's servers
 SERVERS_PLACEHOLDER: Final[str] = "{servers}"
+# the users' help screen stops showing statuses older than this: the check has stopped
+STATE_STALE_AFTER: Final[timedelta] = timedelta(hours=1)
+
 # where the headings of the subscription list point (see `is_separator`)
 SEPARATOR_ADDRESSES: Final[frozenset[str]] = frozenset({"127.0.0.1", "0.0.0.0", "::1"})
 # UTF-16 units a description may take on a purchase screen, and the least the list gets
-DESCRIPTION_BUDGET: Final[int] = 480
+# (the confirmation is the longest screen: plan details, the new end date and a warning)
+DESCRIPTION_BUDGET: Final[int] = 430
 SERVERS_MIN_BUDGET: Final[int] = 100
 
 _ALIVE = (FleetStatus.OK, FleetStatus.PARTIAL)
@@ -209,6 +213,16 @@ def server_names(state: FleetStateDto) -> tuple[list[str], list[str]]:
         elif any(h.status in _ALIVE and not h.hidden for h in hosts):
             working.append(name)
     return down, working
+
+
+def state_age(state: FleetStateDto, now: datetime) -> Optional[timedelta]:
+    """How long ago the last check finished; None when there has been none yet."""
+    if state.checked_at is None:
+        return None
+    checked_at = state.checked_at
+    if checked_at.tzinfo is None:  # stored by an older version
+        checked_at = checked_at.replace(tzinfo=timezone.utc)
+    return max(now - checked_at, timedelta(0))
 
 
 _RANK = {FleetStatus.OK: 0, FleetStatus.PARTIAL: 1, FleetStatus.DOWN: 2}

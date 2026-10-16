@@ -8,20 +8,35 @@ from loguru import logger
 from src.application.common import BotService, Remnawave, TranslatorRunner
 from src.application.common.dao import ReferralDao, SettingsDao, SubscriptionDao
 from src.application.dto import TelegramUserDto
-from src.application.services.fleet import server_statuses, utf16_len
+from src.application.services.fleet import (
+    STATE_STALE_AFTER,
+    server_statuses,
+    state_age,
+    utf16_len,
+)
 from src.application.use_cases.fleet.queries.state import GetFleetState
 from src.application.use_cases.misc.queries.menu import GetMenuData
 from src.application.use_cases.points.exchange import GetPointsExchange
+from src.application.use_cases.subscription.commands.purchase import expires_after
 from src.core.config import AppConfig
-from src.core.constants import TEXT_MEDIA_MAX_LENGTH
+from src.core.constants import (
+    POINTS_DAYS_KEY,
+    POINTS_FROM_PAYMENT_KEY,
+    POINTS_PLAN_KEY,
+    TEXT_MEDIA_MAX_LENGTH,
+)
 from src.core.exceptions import MenuRenderError
 from src.core.utils.i18n_helpers import (
+    i18n_format_bytes_to_unit,
+    i18n_format_date,
     i18n_format_days,
     i18n_format_device_limit,
     i18n_format_expire_time,
     i18n_format_traffic_limit,
+    i18n_format_until,
 )
-from src.core.utils.time import get_traffic_reset_delta
+from src.core.utils.i18n_keys import ByteUnitKey
+from src.core.utils.time import datetime_now, get_traffic_reset_delta
 
 
 @inject
@@ -102,9 +117,22 @@ async def menu_getter(
             return data
 
         subscription = menu_data.current_subscription
+        usage = menu_data.usage
 
         data.update(
             {
+                "plan_name": i18n.get(subscription.plan_snapshot.name),
+                "is_endless": int(subscription.is_unlimited),
+                "expire_date": i18n_format_date(subscription.expire_at),
+                # what is in use, when the panel told us in time
+                "devices_known": int(usage is not None),
+                "devices_used": usage.devices if usage else 0,
+                "device_max": subscription.device_limit,
+                "traffic_known": int(usage is not None),
+                "traffic_used": i18n_format_bytes_to_unit(
+                    usage.traffic_used_bytes if usage else 0, min_unit=ByteUnitKey.MEGABYTE
+                ),
+                "traffic_unlimited": int(subscription.traffic_limit == 0),
                 "has_subscription": True,
                 "is_trial": subscription.is_trial,
                 "traffic_strategy": subscription.traffic_limit_strategy,
@@ -285,15 +313,29 @@ async def help_getter(
     get_fleet_state: FromDishka[GetFleetState],
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """Troubleshooting menu: what to try, and what the last reachability check says."""
+    """Troubleshooting menu: what to try, and what the last reachability check says and when.
+    Statuses from a check that has stopped are not shown: they may say the opposite of now."""
+    support_url = bot_service.get_support_url(text=i18n.get("message.help"))
     state = await get_fleet_state(user)
+    age = state_age(state, datetime_now())
+    if age is not None and age > STATE_STALE_AFTER:
+        return {"servers": i18n.get("msg-menu-help.stale") + "\n\n", "support_url": support_url}
+
+    minutes = int(age.total_seconds() // 60) if age else 0
     statuses = server_statuses(state)
     lines = [
         i18n.get("msg-menu-help.server", name=name, status=status) for name, status in statuses
     ]
 
     # the screen is a banner caption: what does not fit is said shorter, then cut
-    budget = TEXT_MEDIA_MAX_LENGTH - utf16_len(i18n.get("msg-menu-help.main", servers="")) - 40
+    # room for the list: the caption without it, the heading, and an "and n more" line
+    budget = (
+        TEXT_MEDIA_MAX_LENGTH
+        - utf16_len(i18n.get("msg-menu-help.main", servers=""))
+        - utf16_len(i18n.get("msg-menu-help.servers", servers="", minutes=minutes))
+        - utf16_len(i18n.get("msg-menu-help.more", count=len(statuses)))
+        - 4
+    )
     if utf16_len("\n".join(lines)) > budget:
         lines = [
             i18n.get("msg-menu-help.server-short", name=name, status=status)
@@ -307,16 +349,13 @@ async def help_getter(
             lines.append(i18n.get("msg-menu-help.more", count=len(statuses) - len(lines)))
         lines.append(legend)
 
-    servers = i18n.get("msg-menu-help.servers", servers="\n".join(lines)) + "\n\n" if lines else ""
+    servers = (
+        i18n.get("msg-menu-help.servers", servers="\n".join(lines), minutes=minutes) + "\n\n"
+        if lines
+        else ""
+    )
 
-    return {
-        "servers": servers,
-        "support_url": bot_service.get_support_url(text=i18n.get("message.help")),
-    }
-
-
-POINTS_PLAN_KEY = "points_plan_id"
-POINTS_DAYS_KEY = "points_days"
+    return {"servers": servers, "support_url": support_url}
 
 
 @inject
@@ -363,6 +402,7 @@ async def points_confirm_getter(
     user: TelegramUserDto,
     i18n: FromDishka[TranslatorRunner],
     get_points_exchange: FromDishka[GetPointsExchange],
+    subscription_dao: FromDishka[SubscriptionDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     exchange = await get_points_exchange(user, dialog_manager.dialog_data.get(POINTS_PLAN_KEY))
@@ -378,9 +418,12 @@ async def points_confirm_getter(
             "cost": 0,
             "points": exchange.points,
             "remaining": exchange.points,
+            "new_expire": 0,
+            "from_payment": bool(dialog_manager.dialog_data.get(POINTS_FROM_PAYMENT_KEY)),
         }
 
     key, kw = i18n_format_days(offer.days)
+    current = await subscription_dao.get_current(user.id)
     return {
         "available": int(offer.affordable),
         "purchase_type": exchange.purchase_type,
@@ -389,4 +432,6 @@ async def points_confirm_getter(
         "cost": offer.cost,
         "points": exchange.points,
         "remaining": exchange.points - offer.cost,
+        "new_expire": i18n_format_until(expires_after(exchange.purchase_type, current, offer.days)),
+        "from_payment": bool(dialog_manager.dialog_data.get(POINTS_FROM_PAYMENT_KEY)),
     }

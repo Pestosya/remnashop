@@ -117,6 +117,30 @@ frg-subscription =
     • <b>Осталось</b>: { $expire_time }
     </blockquote>
 
+frg-subscription-menu =
+    <blockquote>
+    • <b>Тариф</b>: { $plan_name }
+    • <b>Осталось</b>: { $expire_time }
+    { $is_endless ->
+    [1] { empty }
+    *[0] • <b>Действует до</b>: { $expire_date }
+    }
+    • <b>Устройства</b>: { $devices_known ->
+        [1] { $device_max ->
+            [0] { $devices_used }, без лимита
+            *[other] { $devices_used } из { $device_max }
+            }
+        *[0] { $device_limit }
+    }
+    • <b>Трафик</b>: { $traffic_known ->
+        [1] { $traffic_unlimited ->
+            [1] { $traffic_used }, без лимита
+            *[0] { $traffic_used } из { $traffic_limit }
+            }
+        *[0] { $traffic_limit }
+    }
+    </blockquote>
+
 frg-subscription-user-editor =
     <blockquote>
     • <b>План</b>: { $plan_name }
@@ -253,6 +277,28 @@ role =
 }
 
 unlimited = ∞
+
+date-long = { $day } { $month ->
+    [1] января
+    [2] февраля
+    [3] марта
+    [4] апреля
+    [5] мая
+    [6] июня
+    [7] июля
+    [8] августа
+    [9] сентября
+    [10] октября
+    [11] ноября
+    *[12] декабря
+} { NUMBER($year, useGrouping: 0) }
+
+date-endless = бессрочно
+
+date-until = { $endless ->
+    [1] { date-endless }
+    *[0] до { date-long }
+}
 
 unit-unlimited = { $value ->
     [0] { unlimited }

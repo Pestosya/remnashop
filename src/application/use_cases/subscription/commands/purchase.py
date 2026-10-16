@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Optional
 
 from loguru import logger
@@ -97,6 +97,22 @@ class ActivateTrialSubscription(Interactor[ActivateTrialSubscriptionDto, None]):
         )
 
 
+def expires_after(
+    purchase_type: PurchaseType,
+    subscription: Optional[SubscriptionDto],
+    days: int,
+) -> datetime:
+    """When a subscription bought this way ends: the rule `PurchaseSubscription` applies, so the
+    purchase screens can show the date before the payment. A renewal adds the days to what is
+    left (to today when the subscription has run out); a new plan, a change of plan and a
+    purchase on top of a trial start today. 0 days is a subscription without an end."""
+    if days == 0:
+        return days_to_datetime(days)
+    if purchase_type == PurchaseType.RENEW and subscription and not subscription.is_trial:
+        return max(subscription.expire_at, datetime_now()) + timedelta(days=days)
+    return days_to_datetime(days)
+
+
 @dataclass(frozen=True)
 class PurchaseSubscriptionDto:
     user: UserDto
@@ -160,15 +176,9 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                         f"No subscription found for renewal for user '{user.remna_name}'"
                     )
 
-                duration = transaction.plan_snapshot.duration
-
-                if duration == 0:
-                    new_expire = days_to_datetime(duration)  # unlimited
-                else:
-                    base_date = max(subscription.expire_at, datetime_now())
-                    new_expire = base_date + timedelta(days=duration)
-
-                subscription.expire_at = new_expire
+                subscription.expire_at = expires_after(
+                    purchase_type, subscription, transaction.plan_snapshot.duration
+                )
                 subscription.device_limit = plan.device_limit
                 subscription.traffic_limit = plan.traffic_limit
                 subscription.traffic_limit_strategy = plan.traffic_limit_strategy

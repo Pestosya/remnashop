@@ -16,6 +16,7 @@ from src.telegram.utils import require_permission
 from src.telegram.widgets import Banner, I18nFormat, IgnoreUpdate
 from src.telegram.widgets.kbd import (
     Button,
+    Cancel,
     Column,
     CopyText,
     Group,
@@ -46,6 +47,7 @@ from .handlers import (
     on_device_delete_request,
     on_get_trial,
     on_invite,
+    on_menu_start,
     on_points_duration_select,
     on_points_exchange_confirm,
     on_points_plan_select,
@@ -439,6 +441,13 @@ points_confirm = Window(
             text=I18nFormat("btn-back.general"),
             id="back",
             state=MainMenu.POINTS,
+            when=~F["from_payment"],
+        ),
+        # opened from the payment screen: back to it
+        Cancel(
+            text=I18nFormat("btn-back.general"),
+            id="back_payment",
+            when=F["from_payment"],
         ),
     ),
     IgnoreUpdate(),
@@ -479,4 +488,5 @@ router = Dialog(
     invite_about,
     points,
     points_confirm,
+    on_start=on_menu_start,
 )

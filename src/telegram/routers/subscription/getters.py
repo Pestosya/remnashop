@@ -14,6 +14,8 @@ from src.application.services import PricingService
 from src.application.services.fleet import describe_plan
 from src.application.use_cases.fleet.queries.servers import GetPlanServers
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
+from src.application.use_cases.points.exchange import GetPointsExchange
+from src.application.use_cases.subscription.commands.purchase import expires_after
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
 from src.core.config import AppConfig
 from src.core.enums import PurchaseType
@@ -22,7 +24,11 @@ from src.core.utils.i18n_helpers import (
     i18n_format_device_limit,
     i18n_format_expire_time,
     i18n_format_traffic_limit,
+    i18n_format_until,
 )
+
+# set while the payment screen offers points: the screen is then shown even with one gateway
+POINTS_OFFERED_KEY = "points_offered"
 
 
 async def _describe(
@@ -39,6 +45,18 @@ async def _describe(
         more=lambda count: i18n.get("msg-subscription-servers.more", count=count),
     )
     return description or False
+
+
+async def _new_expire(
+    dialog_manager: DialogManager,
+    user: TelegramUserDto,
+    subscription_dao: SubscriptionDao,
+    days: int,
+) -> tuple[str, dict[str, int]]:
+    """The end date this purchase leads to, shown before the payment."""
+    purchase_type = PurchaseType(dialog_manager.dialog_data.get("purchase_type", PurchaseType.NEW))
+    current = await subscription_dao.get_current(user.id)
+    return i18n_format_until(expires_after(purchase_type, current, days))
 
 
 def _get_gateway_title(i18n: TranslatorRunner, gateway: PaymentGatewayDto) -> str:
@@ -176,6 +194,7 @@ async def duration_getter(
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "durations": durations,
         "period": 0,
+        "new_expire": 0,  # the duration is not chosen yet
         "final_amount": 0,
         "currency": "",
         "only_single_plan": only_single_plan,
@@ -194,6 +213,8 @@ async def payment_method_getter(
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
     get_plan_servers: FromDishka[GetPlanServers],
+    subscription_dao: FromDishka[SubscriptionDao],
+    get_points_exchange: FromDishka[GetPointsExchange],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -227,6 +248,13 @@ async def payment_method_getter(
             }
         )
 
+    # points pay for this purchase too when the exchange covers it; the button is shown
+    # even when the balance is short, so people learn what the points are for
+    purchase_type = PurchaseType(dialog_manager.dialog_data.get("purchase_type", PurchaseType.NEW))
+    exchange = await get_points_exchange(user, plan.id)
+    points = exchange.offer_for(plan.id, duration.days, purchase_type)
+    dialog_manager.dialog_data[POINTS_OFFERED_KEY] = points is not None
+
     key, kw = i18n_format_days(duration.days)
 
     plan_is_modified = 1 if dialog_manager.dialog_data.get("plan_is_modified", False) else 0
@@ -238,7 +266,12 @@ async def payment_method_getter(
         "devices": i18n_format_device_limit(plan.device_limit),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "period": i18n.get(key, **kw),
+        "new_expire": await _new_expire(dialog_manager, user, subscription_dao, duration.days),
         "payment_methods": payment_methods,
+        "points_offered": int(points is not None),
+        "points_cost": points.cost if points else 0,
+        "points_affordable": int(points.affordable) if points else 0,
+        "points_missing": max(points.cost - exchange.points, 0) if points else 0,
         "final_amount": 0,
         "currency": "",
         "only_single_duration": only_single_duration,
@@ -259,6 +292,7 @@ async def confirm_getter(
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
     get_plan_servers: FromDishka[GetPlanServers],
+    subscription_dao: FromDishka[SubscriptionDao],
     **kwargs: Any,
 ) -> dict[str, Any]:
     raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
@@ -299,6 +333,7 @@ async def confirm_getter(
         "devices": i18n_format_device_limit(plan.device_limit),
         "traffic": i18n_format_traffic_limit(plan.traffic_limit),
         "period": i18n.get(key, **kw),
+        "new_expire": await _new_expire(dialog_manager, user, subscription_dao, duration.days),
         "payment_method": selected_payment_method,
         "payment_method_title": _get_gateway_title(i18n, payment_gateway),
         "final_amount": pricing.final_amount,
@@ -307,7 +342,9 @@ async def confirm_getter(
         "is_personal_discount": pricing_service.is_largest_discount_personal(user),
         "currency": payment_gateway.currency.symbol,
         "url": result_url,
-        "only_single_gateway": len(gateways) == 1,
+        # with points on offer the payment screen was shown: "back" leads there
+        "only_single_gateway": len(gateways) == 1
+        and not dialog_manager.dialog_data.get(POINTS_OFFERED_KEY, False),
         "only_single_duration": only_single_duration,
         "only_single_plan": only_single_plan,
         "is_free": is_free,

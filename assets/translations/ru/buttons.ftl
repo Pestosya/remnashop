@@ -571,6 +571,11 @@ btn-subscription =
     .back-payment-method = ⬅️ Изменить способ оплаты
     .connect = 🚀 Подключиться
 
+    .pay-points = Баллы | { $affordable ->
+    [1] { $cost } 💎
+    *[0] не хватает { $missing } 💎
+    }
+
     .payment-method = { $gateway_title } | { $final_amount ->
     [0] 🎁
     *[HAS] { $final_amount }{ $currency }

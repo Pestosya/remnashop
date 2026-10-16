@@ -10,7 +10,13 @@ from loguru import logger
 
 from src.application.common import Notifier
 from src.application.common.dao import PaymentGatewayDao, PlanDao, SettingsDao, SubscriptionDao
-from src.application.dto import PlanDto, PlanSnapshotDto, SubscriptionDto, TelegramUserDto
+from src.application.dto import (
+    MessagePayloadDto,
+    PlanDto,
+    PlanSnapshotDto,
+    SubscriptionDto,
+    TelegramUserDto,
+)
 from src.application.services import PricingService
 from src.application.use_cases.gateways.commands.payment import (
     CreatePayment,
@@ -19,10 +25,19 @@ from src.application.use_cases.gateways.commands.payment import (
     ProcessPaymentDto,
 )
 from src.application.use_cases.plan.queries.match import MatchPlan, MatchPlanDto
+from src.application.use_cases.points.exchange import GetPointsExchange
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
-from src.core.constants import PAYMENT_PREFIX, USER_KEY
+from src.core.constants import (
+    PAYMENT_PREFIX,
+    POINTS_DAYS_KEY,
+    POINTS_FROM_PAYMENT_KEY,
+    POINTS_PLAN_KEY,
+    USER_KEY,
+)
 from src.core.enums import PaymentGatewayType, PurchaseType, TransactionStatus
-from src.telegram.states import Subscription
+from src.telegram.states import MainMenu, Subscription
+
+from .getters import POINTS_OFFERED_KEY
 
 PAYMENT_CACHE_KEY = "payment_cache"
 CURRENT_DURATION_KEY = "selected_duration"
@@ -357,6 +372,7 @@ async def on_duration_select(
     notifier: FromDishka[Notifier],
     pricing_service: FromDishka[PricingService],
     create_payment: FromDishka[CreatePayment],
+    get_points_exchange: FromDishka[GetPointsExchange],
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
     logger.info(f"{user.log} Selected subscription duration '{selected_duration}' days")
@@ -384,8 +400,13 @@ async def on_duration_select(
         currency=currency,
     )
     dialog_manager.dialog_data["is_free"] = price.is_free
+    # with a single gateway the payment screen is skipped, unless points can pay as well
+    points = (await get_points_exchange(user, plan.id)).offer_for(
+        plan.id, selected_duration, PurchaseType(dialog_manager.dialog_data["purchase_type"])
+    )
+    dialog_manager.dialog_data[POINTS_OFFERED_KEY] = points is not None
 
-    if len(gateways) == 1 or price.is_free:
+    if (len(gateways) == 1 and points is None) or price.is_free:
         selected_payment_method = gateways[0].type
         dialog_manager.dialog_data[CURRENT_METHOD_KEY] = selected_payment_method
 
@@ -497,4 +518,55 @@ async def on_get_subscription(
             new_transaction_status=TransactionStatus.COMPLETED,
             gateway_type=gateway_type,
         ),
+    )
+
+
+@inject
+async def on_pay_with_points(
+    callback: CallbackQuery,
+    widget: Button,
+    dialog_manager: DialogManager,
+    retort: FromDishka[Retort],
+    settings_dao: FromDishka[SettingsDao],
+    get_points_exchange: FromDishka[GetPointsExchange],
+    notifier: FromDishka[Notifier],
+) -> None:
+    """Points as a payment method: the points confirmation with this plan and duration, or,
+    when the balance is short, how much is missing and where points come from."""
+    user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
+    raw_plan = dialog_manager.dialog_data.get(PlanDto.__name__)
+
+    if not raw_plan:
+        logger.error("PlanDto not found in dialog data")
+        await dialog_manager.start(state=Subscription.MAIN)
+        return
+
+    plan = retort.load(raw_plan, PlanDto)
+    days = dialog_manager.dialog_data[CURRENT_DURATION_KEY]
+    exchange = await get_points_exchange(user, plan.id)
+    offer = exchange.offer_for(
+        plan.id, days, PurchaseType(dialog_manager.dialog_data["purchase_type"])
+    )
+
+    if offer is None:
+        await notifier.notify_user(user=user, i18n_key="ntf-points.unavailable")
+        return
+
+    if not offer.affordable:
+        logger.info(f"{user.log} Short of points for '{plan.name}' {days} days")
+        await notifier.notify_user(
+            user=user,
+            payload=MessagePayloadDto(
+                i18n_key="ntf-points.not-enough-invite",
+                i18n_kwargs={"missing": offer.cost - exchange.points},
+            ),
+        )
+        if (await settings_dao.get()).referral.enable:
+            await dialog_manager.start(state=MainMenu.INVITE)
+        return
+
+    logger.info(f"{user.log} Chose to pay '{plan.name}' {days} days with points")
+    await dialog_manager.start(
+        state=MainMenu.POINTS_CONFIRM,
+        data={POINTS_PLAN_KEY: plan.id, POINTS_DAYS_KEY: days, POINTS_FROM_PAYMENT_KEY: True},
     )
