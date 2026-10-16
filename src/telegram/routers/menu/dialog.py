@@ -60,7 +60,12 @@ from .handlers import (
 )
 
 custom_buttons = (
-    build_buttons_row(1, text_on_click=on_text_button_click),
+    # "Не работает?" opens the owner's first row: support is one tap further, on its own screen
+    build_buttons_row(
+        1,
+        text_on_click=on_text_button_click,
+        lead=(SwitchTo(text=I18nFormat("btn-menu.help"), id="help", state=MainMenu.HELP),),
+    ),
     build_buttons_row(2, text_on_click=on_text_button_click),
     build_buttons_row(3, text_on_click=on_text_button_click),
 )
@@ -135,18 +140,6 @@ menu = Window(
             text=I18nFormat("btn-menu.web-cabinet"),
             url=Format("{web_cabinet_url}"),
             when=F["web_enabled"],
-        ),
-    ),
-    Row(
-        SwitchTo(
-            text=I18nFormat("btn-menu.help"),
-            id="help",
-            state=MainMenu.HELP,
-        ),
-        Url(
-            text=I18nFormat("btn-menu.support"),
-            id="support",
-            url=Format("{support_url}"),
         ),
     ),
     *custom_buttons,

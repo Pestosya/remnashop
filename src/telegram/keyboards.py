@@ -1,9 +1,10 @@
-from typing import Any, Callable, Final, Optional
+from typing import Any, Callable, Final, Optional, Sequence
 
 from aiogram.enums import ButtonStyle
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram_dialog import StartMode
+from aiogram_dialog.widgets.kbd import Keyboard
 from aiogram_dialog.widgets.style import Style
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
@@ -27,7 +28,13 @@ def _style_kwargs(c: Optional[ButtonStyle]) -> dict[str, Any]:
     return {"style": Style(c)} if c is not None else {}
 
 
-def build_buttons_row(row: int, text_on_click: Optional[Callable[..., Any]] = None) -> Group:
+def build_buttons_row(
+    row: int,
+    text_on_click: Optional[Callable[..., Any]] = None,
+    lead: Sequence[Keyboard] = (),
+) -> Group:
+    """The owner's menu buttons of one row, two per line. `lead` buttons go first and share the
+    line with them; a button left alone on its line takes the full width."""
     url_widgets = [
         Url(
             text=Format("{item.text}"),
@@ -67,6 +74,7 @@ def build_buttons_row(row: int, text_on_click: Optional[Callable[..., Any]] = No
     ]
 
     return Group(
+        *lead,
         ListGroup(
             *url_widgets,
             *copy_widgets,
