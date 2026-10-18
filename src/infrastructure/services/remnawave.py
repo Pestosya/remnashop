@@ -381,10 +381,14 @@ class RemnawaveImpl(Remnawave):
         in the past is exactly that contradiction, and the panel answers 400.
         Omitting the field lets it keep deriving EXPIRED from `expire_at`,
         while every other field still gets pushed.
+
+        It goes by the date being sent, not by the status stored in the bot: a
+        renewal of an expired subscription still has EXPIRED stored while its
+        new `expire_at` is in the future, and that is an ACTIVE subscription.
         """
         if subscription.status == SubscriptionStatus.DISABLED:
             return SubscriptionStatus.DISABLED
-        if subscription.current_status == SubscriptionStatus.EXPIRED:
+        if subscription.expire_at <= datetime_now():
             return None
         return SubscriptionStatus.ACTIVE
 
@@ -396,11 +400,14 @@ class RemnawaveImpl(Remnawave):
         subscription: Optional[SubscriptionDto],
     ) -> UpdateUserRequestDto:
         if subscription:
+            status = self._panel_status(subscription)
             return UpdateUserRequestDto(
                 id=remna_id,
                 telegram_id=user.telegram_id,
                 expire_at=subscription.expire_at,
-                status=self._panel_status(subscription),
+                # the SDK sends every field that was set, so `status=None` would arrive as
+                # null, which the panel rejects: leaving it to the panel means not setting it
+                **({"status": status} if status else {}),
                 traffic_limit_strategy=subscription.traffic_limit_strategy,
                 traffic_limit_bytes=gb_to_bytes(subscription.traffic_limit),
                 hwid_device_limit=subscription.device_limit,

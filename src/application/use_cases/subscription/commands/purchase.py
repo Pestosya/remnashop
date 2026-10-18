@@ -179,6 +179,10 @@ class PurchaseSubscription(Interactor[PurchaseSubscriptionDto, None]):
                 subscription.expire_at = expires_after(
                     purchase_type, subscription, transaction.plan_snapshot.duration
                 )
+                # a renewed subscription runs again, whatever ended it (time or traffic,
+                # which is reset below); one the admin switched off stays off
+                if subscription.status != SubscriptionStatus.DISABLED:
+                    subscription.status = SubscriptionStatus.ACTIVE
                 subscription.device_limit = plan.device_limit
                 subscription.traffic_limit = plan.traffic_limit
                 subscription.traffic_limit_strategy = plan.traffic_limit_strategy
