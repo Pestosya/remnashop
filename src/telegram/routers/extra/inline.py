@@ -8,6 +8,7 @@ from aiogram.types import (
     InlineQueryResultArticle,
     InlineQueryResultUnion,
     InputTextMessageContent,
+    LinkPreviewOptions,
 )
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from dishka import FromDishka
@@ -58,8 +59,13 @@ async def handle_inline_query(
             thumbnail_url="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT6Msm80-vY25Ecm4cOhOTAG1P21zKBax8-KA&s",
             title=i18n.get("inline-invite.title"),
             description=i18n.get("inline-invite.description"),
+            # the link is in the text too: "via @bot" above the message and the bot's name lead
+            # to the bot without the code, and buttons are lost in previews and some clients
             input_message_content=InputTextMessageContent(
-                message_text=i18n.get("inline-invite.message", bot_name=bot_name)
+                message_text=i18n.get(
+                    "inline-invite.message", bot_name=bot_name, referral_url=referral_url
+                ),
+                link_preview_options=LinkPreviewOptions(is_disabled=True),
             ),
             reply_markup=builder.as_markup(),
         )
