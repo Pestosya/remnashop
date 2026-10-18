@@ -283,12 +283,9 @@ invite = Window(
             id="qr",
             on_click=on_show_qr,
         ),
-        SwitchInlineQueryChosenChatButton(
+        Url(
             text=I18nFormat("btn-invite.send"),
-            query=Format(INLINE_QUERY_INVITE),
-            allow_user_chats=True,
-            allow_group_chats=True,
-            allow_channel_chats=True,
+            url=Format("{share_url}"),
             id="send",
         ),
     ),

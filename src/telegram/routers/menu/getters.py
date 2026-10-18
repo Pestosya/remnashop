@@ -1,4 +1,5 @@
 from typing import Any
+from urllib.parse import quote
 
 from aiogram_dialog import DialogManager
 from dishka import FromDishka
@@ -23,6 +24,7 @@ from src.core.constants import (
     POINTS_DAYS_KEY,
     POINTS_FROM_PAYMENT_KEY,
     POINTS_PLAN_KEY,
+    T_ME,
     TEXT_MEDIA_MAX_LENGTH,
 )
 from src.core.exceptions import MenuRenderError
@@ -266,6 +268,10 @@ async def invite_getter(
         "has_points": True if user.points > 0 else False,
         "exchange_enabled": settings.extra.points.exchange_enabled,
         "referral_url": referral_url,
+        # Telegram's own "share": the chat picker with a ready message that holds the link, so
+        # whatever the user taps, the friend gets the referral link (not a bare inline query)
+        "share_url": f"{T_ME}share/url?url={quote(referral_url, safe='')}"
+        f"&text={quote(i18n.get('inline-invite.share'), safe='')}",
         "withdraw": support_url,
         "referral_reset_enabled": int(settings.extra.referral_reset.enabled),
     }
