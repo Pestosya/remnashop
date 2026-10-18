@@ -83,8 +83,9 @@ class GetPointsExchange(Interactor[Optional[int], PointsExchangeDto]):
 
     A user with a paid subscription renews it: same plan, any of its durations. A user
     without one (never bought, or on a trial) buys a plan; `plan_id` is their choice when
-    several are on sale. Switching to another plan is left to the regular purchase flow: it
-    drops the days left, which nobody should lose by tapping "exchange".
+    several are on sale. A paid user who names another plan switches to it (CHANGE): that
+    choice is only made in the regular purchase flow, whose screens say the days left are
+    dropped, so the exchange screen's own "renew" never turns into a switch.
 
     A duration costs its ruble price (with the user's discounts) times the rate.
     """
@@ -118,7 +119,17 @@ class GetPointsExchange(Interactor[Optional[int], PointsExchangeDto]):
         plans = [p for p in await self.get_available_plans.system(user) if not p.is_trial]
         subscription = await self.subscription_dao.get_current(user.id)
 
-        if subscription and not subscription.is_trial:
+        paid_plan_id = (
+            subscription.plan_snapshot.id if subscription and not subscription.is_trial else None
+        )
+
+        if paid_plan_id is not None and plan_id not in (None, paid_plan_id):
+            result.purchase_type = PurchaseType.CHANGE
+            result.plan = next((p for p in plans if p.id == plan_id), None)
+            if result.plan is None:
+                result.status = PointsExchangeStatus.PLAN_UNAVAILABLE
+                return result
+        elif subscription and not subscription.is_trial:
             result.purchase_type = PurchaseType.RENEW
             if subscription.is_unlimited:
                 result.status = PointsExchangeStatus.UNLIMITED
