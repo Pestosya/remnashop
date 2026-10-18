@@ -281,12 +281,14 @@ class RemnawaveImpl(Remnawave):
             logger.debug(f"RemnaUser '{remna_id}' not found in panel")
             return None
 
-    async def revoke_subscription(self, remna_id: int) -> None:
+    async def revoke_subscription(self, remna_id: int) -> Optional[str]:
         try:
-            await self.sdk.users.revoke_user_subscription(remna_id)
+            result = await self.sdk.users.revoke_user_subscription(remna_id)
             logger.info(f"Subscription for RemnaUser '{remna_id}' revoked successfully")
+            return result.subscription_url
         except NotFoundError:
             logger.debug(f"RemnaUser '{remna_id}' not found in panel")
+            return None
 
     async def get_squads_available(self) -> bool:
         result = await self.sdk.internal_squads.get_internal_squads()

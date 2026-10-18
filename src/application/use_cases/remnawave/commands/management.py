@@ -186,7 +186,10 @@ class ReissueSubscription(Interactor[None, None]):
                 raise CooldownError(available_at)
 
         async with self.uow:
-            await self.remnawave.revoke_subscription(current_subscription.remna_id)
+            new_url = await self.remnawave.revoke_subscription(current_subscription.remna_id)
+            # the old link is dead from now on: "Подключиться" must hand out the new one
+            if new_url:
+                current_subscription.url = new_url
             current_subscription.link_reset_at = datetime_now()
             await self.subscription_dao.update(current_subscription)
             await self.uow.commit()
@@ -198,11 +201,16 @@ class ReissueUserSubscription(Interactor[int, None]):
     required_permission = Permission.USER_EDITOR
 
     def __init__(
-        self, user_dao: UserDao, subscription_dao: SubscriptionDao, remnawave: Remnawave
+        self,
+        user_dao: UserDao,
+        subscription_dao: SubscriptionDao,
+        remnawave: Remnawave,
+        uow: UnitOfWork,
     ) -> None:
         self.user_dao = user_dao
         self.subscription_dao = subscription_dao
         self.remnawave = remnawave
+        self.uow = uow
 
     async def _execute(self, actor: UserDto, user_id: int) -> None:
         target_user = await self.user_dao.get_by_id(user_id)
@@ -214,6 +222,11 @@ class ReissueUserSubscription(Interactor[int, None]):
         if not current_subscription:
             raise ValueError(f"No active subscription for user '{target_user.remna_name}'")
 
-        await self.remnawave.revoke_subscription(current_subscription.remna_id)
+        async with self.uow:
+            new_url = await self.remnawave.revoke_subscription(current_subscription.remna_id)
+            if new_url:
+                current_subscription.url = new_url
+                await self.subscription_dao.update(current_subscription)
+            await self.uow.commit()
 
         logger.info(f"{actor.log} Reissued subscription for user '{target_user.id}'")
