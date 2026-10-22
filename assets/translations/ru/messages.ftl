@@ -1874,6 +1874,11 @@ msg-fleet-host =
     .visible = { msg-fleet-host-icon } { $remark } — { $passed }/{ $total }
     .hidden = { msg-fleet-host-icon } { $remark } — { $passed }/{ $total } (скрыт из подписок)
     .unknown = ⚪ { $remark } — нет данных
+    .more-ok = 🟢 И ещё { $count } { $count ->
+        [one] работает
+        *[other] работают
+        }
+    .more = … и ещё { $count }
 
 msg-menu-help =
     .main =
