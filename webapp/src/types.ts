@@ -26,6 +26,8 @@ export interface MeResponse {
   name: string;
   username: string | null;
   language: string;
+  /** Omitted by older API versions; an explicit zero is a real balance. */
+  available_bonus_balance?: number;
 }
 
 export interface SubscriptionInfoResponse {
@@ -131,6 +133,8 @@ export interface ReferralProgramResponse {
   referral_link: string;
   invited_count: number;
   invited_with_payment_count: number;
+  /** Omitted by older API versions; /auth/me remains the primary source. */
+  available_bonus_balance?: number;
   reward_type: string;
   reward_strategy: string;
   accrual_strategy: string;

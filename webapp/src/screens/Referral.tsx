@@ -1,9 +1,9 @@
 import { ApiError, api } from "../api";
 import { t } from "../i18n";
 import { copy, shareLink } from "../telegram";
+import type { ReferralProgramResponse, ReferralRewardLevelResponse } from "../types";
 import {
   Button,
-  Card,
   Empty,
   ErrorState,
   Skeleton,
@@ -14,7 +14,9 @@ import {
 
 /** Turns the endpoint's 403 detail into a localized explanation. */
 function gateReason(error: Error): string | null {
-  if (!(error instanceof ApiError) || error.status !== 403) return null;
+  const fallbackStatus = (error as Error & { status?: unknown }).status;
+  const status = error instanceof ApiError ? error.status : fallbackStatus;
+  if (status !== 403) return null;
 
   const detail = error.message.toLowerCase();
   if (detail.includes("disabled")) return t("referralDisabled");
@@ -24,16 +26,101 @@ function gateReason(error: Error): string | null {
   return t("referralDisabled");
 }
 
+const numberFormatter = new Intl.NumberFormat(undefined, {
+  maximumFractionDigits: 2,
+});
+
+function formatNumber(value: number): string {
+  return numberFormatter.format(value);
+}
+
+function readBonusBalance(value: number | undefined): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+/** Only labels reward units whose meaning is explicit in the API response. */
+function formatReward(
+  program: ReferralProgramResponse,
+  level: ReferralRewardLevelResponse,
+): string | null {
+  const value = formatNumber(level.value);
+
+  if (program.reward_strategy.toUpperCase() === "PERCENT") return `${value}%`;
+  if (program.reward_type.toUpperCase() === "DAYS") {
+    return t("referralRewardDays", { value });
+  }
+
+  return null;
+}
+
+function CrystalIcon() {
+  return (
+    <svg
+      className="referral-crystal-icon"
+      viewBox="0 0 48 48"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="m14 8-7 10 17 22 17-22-7-10H14Z" />
+      <path d="m7 18 17 6 17-6M14 8l10 16L34 8M24 24v16" />
+    </svg>
+  );
+}
+
+function ReferralHeader({ firstLevelReward }: { firstLevelReward?: string }) {
+  return (
+    <header className="referral-header">
+      <span className="referral-eyebrow">{t("referralProgram")}</span>
+      <h1>{t("referralTitle")}</h1>
+      <p>{t("referralHint")}</p>
+      {firstLevelReward && (
+        <span className="referral-reward-summary">
+          {t("referralRewardSummary", { reward: firstLevelReward })}
+        </span>
+      )}
+    </header>
+  );
+}
+
+function BalanceCard({ balance }: { balance: number }) {
+  return (
+    <article className="referral-balance-card">
+      <span className="referral-crystal">
+        <CrystalIcon />
+      </span>
+      <span className="referral-balance-copy">
+        <span className="referral-stat-label">{t("availableBonusBalance")}</span>
+        <strong>{t("bonusPoints", { value: formatNumber(balance) })}</strong>
+        <span className="referral-balance-hint">{t("bonusBalanceHint")}</span>
+      </span>
+    </article>
+  );
+}
+
 export default function ReferralScreen() {
+  const profile = useResource(() => api.me());
   const program = useResource(() => api.referral());
   const [busy, perform] = useAction();
   const toast = useToast();
 
+  const profileBalance = readBonusBalance(profile.data?.available_bonus_balance);
+  const programBalance = readBonusBalance(program.data?.available_bonus_balance);
+  const bonusBalance = profileBalance ?? programBalance;
+
   if (program.loading) {
     return (
-      <div className="page">
-        <Skeleton height={120} />
-        <Skeleton height={90} />
+      <div className="page referral-page">
+        <ReferralHeader />
+        <div className="referral-loading-stats">
+          <Skeleton height={112} />
+          <Skeleton height={112} />
+        </div>
+        {bonusBalance !== undefined ? <BalanceCard balance={bonusBalance} /> : <Skeleton height={130} />}
+        <Skeleton height={176} />
       </div>
     );
   }
@@ -43,7 +130,9 @@ export default function ReferralScreen() {
     // require an active subscription. Showing "retry" for those is misleading.
     const reason = gateReason(program.error);
     return (
-      <div className="page">
+      <div className="page referral-page">
+        <ReferralHeader />
+        {bonusBalance !== undefined && <BalanceCard balance={bonusBalance} />}
         {reason ? (
           <Empty icon="🤝" title={reason} />
         ) : (
@@ -57,13 +146,22 @@ export default function ReferralScreen() {
 
   if (!data.enabled) {
     return (
-      <div className="page">
+      <div className="page referral-page">
+        <ReferralHeader />
+        {bonusBalance !== undefined && <BalanceCard balance={bonusBalance} />}
         <Empty icon="🤝" title={t("referralDisabled")} />
       </div>
     );
   }
 
   const link = data.referral_link;
+  const rewardLevels = data.reward_levels
+    .map((level) => ({ level, reward: formatReward(data, level) }))
+    .filter((entry): entry is { level: ReferralRewardLevelResponse; reward: string } =>
+      Boolean(entry.reward),
+    );
+  const firstLevelReward =
+    rewardLevels.find((entry) => entry.level.level === 1)?.reward ?? rewardLevels[0]?.reward;
 
   const copyCode = () =>
     perform(async () => {
@@ -72,36 +170,62 @@ export default function ReferralScreen() {
     });
 
   return (
-    <div className="page">
-      <Card>
-        <div className="hero">
-          <span className="hero-plan">{t("referralTitle")}</span>
-          <span className="hero-expiry">{t("referralHint")}</span>
-        </div>
+    <div className="page referral-page">
+      <ReferralHeader firstLevelReward={firstLevelReward} />
 
-        <div className="stats">
-          <div className="stat">
-            <div className="stat-value">{data.invited_count}</div>
-            <div className="stat-label">{t("invited")}</div>
-          </div>
-          <div className="stat">
-            <div className="stat-value">{data.invited_with_payment_count}</div>
-            <div className="stat-label">{t("invitedPaid")}</div>
-          </div>
-        </div>
-      </Card>
+      <section className="referral-stats" aria-label={t("referralStats")}>
+        <article className="referral-stat-card">
+          <span className="referral-stat-label">{t("invited")}</span>
+          <strong>{formatNumber(data.invited_count)}</strong>
+        </article>
+        <article className="referral-stat-card">
+          <span className="referral-stat-label">{t("invitedPaid")}</span>
+          <strong>{formatNumber(data.invited_with_payment_count)}</strong>
+        </article>
 
-      <Card title={t("yourLink")}>
-        <div className="link-box">
+        {bonusBalance !== undefined && <BalanceCard balance={bonusBalance} />}
+      </section>
+
+      <section className="referral-link-card">
+        <div className="referral-card-heading">
+          <h2>{t("yourLink")}</h2>
+          <p>{t("referralLinkHint")}</p>
+        </div>
+        <div className="link-box referral-link-box" title={link}>
           <span>{link}</span>
         </div>
-        <div className="btn-row">
+        <div className="referral-actions">
           <Button onClick={() => shareLink(link, t("referralHint"))}>{t("share")}</Button>
           <Button variant="secondary" onClick={copyCode} busy={busy}>
             {t("copy")}
           </Button>
         </div>
-      </Card>
+      </section>
+
+      <section className="referral-rules-card">
+        <div className="referral-card-heading">
+          <h2>{t("referralRules")}</h2>
+        </div>
+        <ul className="referral-rules-list">
+          <li>{t("referralRuleLink")}</li>
+          {data.accrual_strategy.toUpperCase() === "ON_PAYMENT" && (
+            <li>{t("referralRulePayment")}</li>
+          )}
+          <li>{t("referralRuleLevels")}</li>
+          {rewardLevels.map(({ level, reward }) => (
+            <li key={level.level}>
+              {t("referralRuleLevel", {
+                level: formatNumber(level.level),
+                reward,
+              })}
+            </li>
+          ))}
+          {rewardLevels.length === 0 && <li>{t("referralRuleProgram")}</li>}
+          <li>{t("referralRuleFullPayment")}</li>
+          <li>{t("referralRuleNoPartial")}</li>
+          <li>{t("referralRuleBotPayment")}</li>
+        </ul>
+      </section>
     </div>
   );
 }

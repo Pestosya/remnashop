@@ -25,6 +25,27 @@ export function isDemo(): boolean {
   return new URLSearchParams(window.location.search).get("demo") === "1";
 }
 
+const demoParam = (name: string): string | null =>
+  new URLSearchParams(window.location.search).get(name);
+
+function demoBonusBalance(): number | undefined {
+  const value = demoParam("demo_balance");
+  if (value === "missing") return undefined;
+  if (value === null) return 2762;
+
+  const numeric = Number(value);
+  return Number.isInteger(numeric) && numeric >= 0 ? numeric : 2762;
+}
+
+function withDemoBalance<T extends object>(value: T): T & { available_bonus_balance?: number } {
+  const balance = demoBonusBalance();
+  return balance === undefined ? { ...value } : { ...value, available_bonus_balance: balance };
+}
+
+function forbidden(message: string): Promise<never> {
+  return Promise.reject(Object.assign(new Error(message), { status: 403 }));
+}
+
 const delay = <T>(value: T, ms = 350): Promise<T> =>
   new Promise((resolve) => setTimeout(() => resolve(value), ms));
 
@@ -58,6 +79,16 @@ const subscription: SubscriptionInfoResponse = {
   online_at: new Date().toISOString(),
 };
 
+function demoSubscription(): SubscriptionInfoResponse {
+  if (demoParam("demo_subscription") !== "expired") return subscription;
+
+  return {
+    ...subscription,
+    status: "EXPIRED",
+    expire_at: daysFromNow(-2),
+  };
+}
+
 const devices: DevicesResponse = {
   current_count: 2,
   max_count: 3,
@@ -79,16 +110,25 @@ const devices: DevicesResponse = {
   ],
 };
 
-const price = (amount: string, discount = 0) => ({
-  gateway_type: "YOOKASSA" as const,
-  currency: "RUB",
-  currency_symbol: "₽",
+const price = (
+  gateway_type: "YOOKASSA" | "CRYPTOMUS",
+  amount: string,
+  discount = 0,
+) => ({
+  gateway_type,
+  currency: gateway_type === "YOOKASSA" ? "RUB" : "USD",
+  currency_symbol: gateway_type === "YOOKASSA" ? "₽" : "$",
   original_amount: amount,
   discount_percent: discount,
   final_amount:
     discount > 0 ? String(Math.round(Number(amount) * (1 - discount / 100))) : amount,
   is_free: false,
 });
+
+const prices = (rub: string, usd: string, discount = 0) => [
+  price("YOOKASSA", rub, discount),
+  price("CRYPTOMUS", usd, discount),
+];
 
 const offers: SubscriptionOffersResponse = {
   has_current_subscription: true,
@@ -108,9 +148,9 @@ const offers: SubscriptionOffersResponse = {
       type: "BOTH",
       recommended_purchase_type: "RENEW",
       durations: [
-        { days: 30, prices: [price("199")] },
-        { days: 90, prices: [price("597", 10)] },
-        { days: 365, prices: [price("2388", 25)] },
+        { days: 30, prices: prices("199", "3") },
+        { days: 90, prices: prices("597", "10", 10) },
+        { days: 365, prices: prices("2388", "40", 25) },
       ],
     },
     {
@@ -123,8 +163,8 @@ const offers: SubscriptionOffersResponse = {
       type: "BOTH",
       recommended_purchase_type: "CHANGE",
       durations: [
-        { days: 30, prices: [price("349")] },
-        { days: 90, prices: [price("1047", 10)] },
+        { days: 30, prices: prices("349", "5") },
+        { days: 90, prices: prices("1047", "20", 10) },
       ],
     },
   ],
@@ -146,6 +186,16 @@ const referral: ReferralProgramResponse = {
   ],
 };
 
+function demoReferral(): Promise<ReferralProgramResponse> {
+  if (demoParam("demo_subscription") === "expired") {
+    return forbidden("Referral program is available only for users with active subscription");
+  }
+  if (demoParam("demo_referral") === "403") {
+    return forbidden("Referral program is disabled");
+  }
+  return delay(withDemoBalance(referral));
+}
+
 const payment: PaymentInitResponse = {
   payment_id: "demo-payment",
   payment_url: null,
@@ -158,9 +208,9 @@ const payment: PaymentInitResponse = {
 
 // Typed against the real client so a signature change here fails the build.
 export const demoApi: typeof realApi = {
-  me: () => delay(me),
+  me: () => delay(withDemoBalance(me)),
   subscription: {
-    current: () => delay(subscription),
+    current: () => delay(demoSubscription()),
     offers: () => delay(offers),
     reissue: () => delay({ success: true }),
     purchase: () => delay(payment),
@@ -180,5 +230,5 @@ export const demoApi: typeof realApi = {
     remove: () => delay({ deleted: true }),
     removeAll: () => delay({ success: true }),
   },
-  referral: () => delay(referral),
+  referral: demoReferral,
 };

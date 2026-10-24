@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api } from "../api";
+import { ApiError, api } from "../api";
 import { t } from "../i18n";
 import { openPayment } from "../telegram";
 import { Button, Card, useAction, useToast } from "../ui";
@@ -11,9 +11,16 @@ import { Button, Card, useAction, useToast } from "../ui";
  * outright, otherwise it returns the gateways a paid trial can be bought
  * through and a second call is needed.
  */
-export default function PromoScreen({ onChanged }: { onChanged: () => void }) {
+export default function PromoScreen({
+  onChanged,
+  showTrial,
+}: {
+  onChanged: () => void;
+  showTrial: boolean;
+}) {
   const toast = useToast();
   const [code, setCode] = useState("");
+  const [trialUnavailable, setTrialUnavailable] = useState(false);
   const [busy, perform] = useAction();
 
   const applyPromocode = () =>
@@ -29,7 +36,15 @@ export default function PromoScreen({ onChanged }: { onChanged: () => void }) {
 
   const startTrial = () =>
     perform(async () => {
-      const trial = await api.subscription.trial();
+      let trial;
+      try {
+        trial = await api.subscription.trial();
+      } catch (cause) {
+        if (cause instanceof ApiError && cause.status === 409) {
+          setTrialUnavailable(true);
+        }
+        throw cause;
+      }
 
       if (trial.activated) {
         toast(t("trialActivated"));
@@ -64,11 +79,11 @@ export default function PromoScreen({ onChanged }: { onChanged: () => void }) {
     <>
       <Card title={t("promocode")}>
         <form
+          className="promocode-form"
           onSubmit={(event) => {
             event.preventDefault();
             applyPromocode();
           }}
-          style={{ display: "flex", flexDirection: "column", gap: 10 }}
         >
           <input
             className="input"
@@ -86,11 +101,13 @@ export default function PromoScreen({ onChanged }: { onChanged: () => void }) {
         </form>
       </Card>
 
-      <Card>
-        <Button variant="ghost" onClick={startTrial} busy={busy}>
-          {t("tryFree")}
-        </Button>
-      </Card>
+      {showTrial && !trialUnavailable && (
+        <Card>
+          <Button variant="ghost" onClick={startTrial} busy={busy}>
+            {t("tryFree")}
+          </Button>
+        </Card>
+      )}
     </>
   );
 }

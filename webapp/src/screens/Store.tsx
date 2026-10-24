@@ -2,10 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { t } from "../i18n";
 import { formatBytes, formatDuration, formatPrice, gbToBytes, isUnlimited } from "../format";
-import { openPayment } from "../telegram";
+import { haptic, openPayment } from "../telegram";
 import {
   Button,
-  Card,
   Empty,
   ErrorState,
   Options,
@@ -43,19 +42,65 @@ const GATEWAY_LABELS: Partial<Record<PaymentGatewayType, string>> = {
 
 const gatewayLabel = (type: PaymentGatewayType): string => GATEWAY_LABELS[type] ?? type;
 
-function planSummary(plan: PlanOfferResponse): string {
-  const parts: string[] = [];
-
-  parts.push(
-    isUnlimited(plan.traffic_limit)
-      ? t("unlimited")
-      : formatBytes(gbToBytes(plan.traffic_limit)),
+function StoreHeader() {
+  return (
+    <header className="store-header">
+      <h1>{t("store")}</h1>
+    </header>
   );
-  if (!isUnlimited(plan.device_limit)) {
-    parts.push(t("deviceCount", { count: String(plan.device_limit) }));
-  }
+}
 
-  return parts.join(" · ");
+function PlanList({
+  plans,
+  selected,
+  onSelect,
+}: {
+  plans: PlanOfferResponse[];
+  selected: string;
+  onSelect: (code: string) => void;
+}) {
+  return (
+    <div className="plan-list">
+      {plans.map((plan) => {
+        const isSelected = plan.public_code === selected;
+        const devices = isUnlimited(plan.device_limit)
+          ? `${t("devices")}: ${t("unlimited")}`
+          : t("deviceCount", { count: String(plan.device_limit) });
+        const traffic = `${t("traffic")}: ${
+          isUnlimited(plan.traffic_limit)
+            ? t("unlimited")
+            : formatBytes(gbToBytes(plan.traffic_limit))
+        }`;
+
+        return (
+          <button
+            key={plan.public_code}
+            type="button"
+            className="plan-card"
+            aria-pressed={isSelected}
+            onClick={() => {
+              haptic.select();
+              onSelect(plan.public_code);
+            }}
+          >
+            <span className="plan-card-head">
+              <span className="plan-card-name">{plan.name}</span>
+              <span className="plan-selection-indicator" aria-hidden="true">
+                <span />
+              </span>
+            </span>
+            {plan.description && (
+              <span className="plan-card-description">{plan.description}</span>
+            )}
+            <span className="plan-card-features">
+              <span>{devices}</span>
+              <span>{traffic}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export default function StoreScreen() {
@@ -63,7 +108,8 @@ export default function StoreScreen() {
 
   if (offers.loading) {
     return (
-      <div className="page">
+      <div className="page store-page">
+        <StoreHeader />
         <Skeleton height={120} />
         <Skeleton height={160} />
       </div>
@@ -72,7 +118,8 @@ export default function StoreScreen() {
 
   if (offers.error) {
     return (
-      <div className="page">
+      <div className="page store-page">
+        <StoreHeader />
         <ErrorState onRetry={offers.reload} />
       </div>
     );
@@ -82,7 +129,8 @@ export default function StoreScreen() {
 
   if (data.gateways.length === 0) {
     return (
-      <div className="page">
+      <div className="page store-page">
+        <StoreHeader />
         <Empty icon="💳" title={t("noGateways")} />
       </div>
     );
@@ -90,7 +138,8 @@ export default function StoreScreen() {
 
   if (data.plans.length === 0) {
     return (
-      <div className="page">
+      <div className="page store-page">
+        <StoreHeader />
         <Empty icon="📦" title={t("noSubscription")} hint={t("noSubscriptionHint")} />
       </div>
     );
@@ -157,12 +206,6 @@ function StoreForm({
     sub: item.currency,
   }));
 
-  const planItems: OptionItem<string>[] = offers.plans.map((item) => ({
-    value: item.public_code,
-    main: item.name,
-    sub: planSummary(item),
-  }));
-
   const isRenew = plan.recommended_purchase_type === "RENEW";
 
   const pay = () =>
@@ -194,26 +237,30 @@ function StoreForm({
     });
 
   return (
-    <div className="page">
-      {offers.plans.length > 1 && (
-        <Card title={t("store")}>
-          <Options items={planItems} selected={planCode} onSelect={setPlanCode} />
-          {plan.description && <div className="option-sub">{plan.description}</div>}
-        </Card>
-      )}
+    <div className="page store-page">
+      <StoreHeader />
+
+      <section className="store-section" aria-labelledby="plans-title">
+        <h2 className="store-section-title" id="plans-title">
+          {t("choosePlan")}
+        </h2>
+        <PlanList plans={offers.plans} selected={planCode} onSelect={setPlanCode} />
+      </section>
+
+      <section className="store-section">
+        <h2 className="store-section-title">{t("duration")}</h2>
+        <Options items={durationItems} selected={days} onSelect={setDays} />
+      </section>
 
       {offers.gateways.length > 1 && (
-        <Card title={t("payWith")}>
+        <section className="store-section">
+          <h2 className="store-section-title">{t("payWith")}</h2>
           <Options items={gatewayItems} selected={gateway} onSelect={setGateway} />
-        </Card>
+        </section>
       )}
 
-      <Card title={t("duration")}>
-        <Options items={durationItems} selected={days} onSelect={setDays} />
-      </Card>
-
       {selected && (
-        <Card>
+        <section className="store-checkout-card">
           <Row label={t("plan")} value={plan.name} />
           <Row label={t("duration")} value={formatDuration(selected.days)} />
           {selected.price.discount_percent > 0 && (
@@ -222,6 +269,14 @@ function StoreForm({
               value={formatPrice(selected.price.original_amount, selected.price.currency_symbol)}
             />
           )}
+          <Row
+            label={t("total")}
+            value={
+              selected.price.is_free
+                ? t("free")
+                : formatPrice(selected.price.final_amount, selected.price.currency_symbol)
+            }
+          />
           <Button onClick={pay} busy={busy} disabled={days === null}>
             {selected.price.is_free
               ? t("free")
@@ -230,7 +285,7 @@ function StoreForm({
                   selected.price.currency_symbol,
                 )}`}
           </Button>
-        </Card>
+        </section>
       )}
     </div>
   );
