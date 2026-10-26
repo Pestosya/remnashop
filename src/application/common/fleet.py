@@ -1,6 +1,6 @@
 from typing import Optional, Protocol, runtime_checkable
 
-from src.application.dto import PanelHostDto, ProbeResultDto, ProbeTargetDto
+from src.application.dto import PanelHostDto, ProbeQuotaDto, ProbeResultDto, ProbeTargetDto
 
 
 @runtime_checkable
@@ -26,3 +26,7 @@ class FleetProber(Protocol):
         self,
         targets: list[ProbeTargetDto],
     ) -> dict[ProbeTargetDto, ProbeResultDto]: ...
+
+    async def quota(self) -> Optional[ProbeQuotaDto]:
+        """What the measuring service still allows this hour; None when it cannot be told."""
+        ...

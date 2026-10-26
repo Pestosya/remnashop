@@ -1,3 +1,4 @@
+import math
 import uuid
 
 from aiogram.types import CallbackQuery, Message
@@ -8,9 +9,10 @@ from dishka import FromDishka
 from dishka.integrations.aiogram_dialog import inject
 from loguru import logger
 
-from src.application.common import Notifier
+from src.application.common import FleetProber, Notifier
 from src.application.common.policy import Permission, PermissionPolicy
-from src.application.dto import TelegramUserDto
+from src.application.dto import MessagePayloadDto, TelegramUserDto
+from src.application.services.fleet import CHECK_PROBE_BUDGET
 from src.application.use_cases.fleet.commands.compensation import (
     COMPENSATION_DAYS_MAX,
     COMPENSATION_DAYS_MIN,
@@ -38,8 +40,22 @@ async def on_fleet_check(
     widget: Button,
     dialog_manager: DialogManager,
     notifier: FromDishka[Notifier],
+    prober: FromDishka[FleetProber],
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
+    # the measuring service allows so many probe-tests an hour: a check it cannot pay for
+    # would only replace every status with "no data"
+    quota = await prober.quota()
+    if quota is not None and quota.remaining < CHECK_PROBE_BUDGET:
+        logger.info(f"{user.log} Manual fleet check refused: {quota.remaining} probe-tests left")
+        await notifier.notify_user(
+            user=user,
+            payload=MessagePayloadDto(
+                i18n_key="ntf-fleet.check-limited",
+                i18n_kwargs={"minutes": max(1, math.ceil(quota.reset_seconds / 60))},
+            ),
+        )
+        return
     # the check takes up to a minute: it runs in the worker, this window shows its result later
     await check_fleet_now_task.kiq()  # type: ignore[call-overload]
     logger.info(f"{user.log} Started a manual fleet check")

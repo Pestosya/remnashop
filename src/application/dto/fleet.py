@@ -33,6 +33,14 @@ class ProbeTargetDto:
 
 
 @dataclass(frozen=True, kw_only=True)
+class ProbeQuotaDto:
+    """What the measuring service still allows: probe-tests left and seconds until they refill."""
+
+    remaining: int
+    reset_seconds: int
+
+
+@dataclass(frozen=True, kw_only=True)
 class ProbeResultDto:
     # TLS handshakes from remote probes in Russian networks
     passed: int = 0

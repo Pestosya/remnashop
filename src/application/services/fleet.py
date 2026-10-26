@@ -29,6 +29,8 @@ ANNOUNCE_MAX_LENGTH = 200
 SERVERS_PLACEHOLDER: Final[str] = "{servers}"
 # the users' help screen stops showing statuses older than this: the check has stopped
 STATE_STALE_AFTER: Final[timedelta] = timedelta(hours=1)
+# probe-tests one check of all servers may spend; a manual check needs at least this much left
+CHECK_PROBE_BUDGET: Final[int] = 48
 
 # where the headings of the subscription list point (see `is_separator`)
 SEPARATOR_ADDRESSES: Final[frozenset[str]] = frozenset({"127.0.0.1", "0.0.0.0", "::1"})
@@ -74,11 +76,14 @@ def classify(result: Optional[ProbeResultDto], network_ok: bool) -> FleetStatus:
             return FleetStatus.PARTIAL
         return FleetStatus.DOWN
 
-    # No usable remote result: fall back to the handshake made from this server, but only
-    # when this server's own network demonstrably works.
-    if result.direct_ok is None or not network_ok:
-        return FleetStatus.UNKNOWN
-    return FleetStatus.OK if result.direct_ok else FleetStatus.DOWN
+    # No usable remote result (the measuring service refused or failed): the handshake made
+    # from this server can still tell that a host is dead, but never that it works for Russian
+    # users - this server sits in the same hoster's network as some nodes, and that traffic
+    # never meets the filter that blocks them (Norway, 26.10.2026). A failure counts only when
+    # this server's own network demonstrably works.
+    if result.direct_ok is False and network_ok:
+        return FleetStatus.DOWN
+    return FleetStatus.UNKNOWN
 
 
 def _advance(

@@ -7,6 +7,7 @@ from .fleet import (
     FleetHostStateDto,
     FleetStateDto,
     PanelHostDto,
+    ProbeQuotaDto,
     ProbeResultDto,
     ProbeTargetDto,
 )
@@ -100,6 +101,7 @@ __all__ = [
     "FleetHostStateDto",
     "FleetStateDto",
     "PanelHostDto",
+    "ProbeQuotaDto",
     "ProbeResultDto",
     "ProbeTargetDto",
     "MenuButtonDto",

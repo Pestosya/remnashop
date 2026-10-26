@@ -7,7 +7,9 @@ from loguru import logger
 from remnapy import RemnawaveSDK
 
 from src.application.common import FleetProber, PanelFleet
-from src.application.dto import PanelHostDto, ProbeResultDto, ProbeTargetDto
+from src.application.dto import PanelHostDto, ProbeQuotaDto, ProbeResultDto, ProbeTargetDto
+from src.application.services.fleet import CHECK_PROBE_BUDGET
+from src.core.config import AppConfig
 
 
 class RemnaPanelFleet(PanelFleet):
@@ -84,16 +86,41 @@ class GlobalpingProber(FleetProber):
     An open port proves nothing: the filtering equipment often lets the TCP handshake through
     and drops the data, so every check is a real TLS session with the host's SNI. The public
     Globalping API allows about 250 probe-tests an hour without a key; the budget per run
-    keeps four runs an hour inside that.
+    keeps four runs an hour inside that, and a run never asks for more than is left (manual
+    checks on top of the schedule used to run it dry, and every host showed 0/0).
     """
 
     API_BASE: Final[str] = "https://api.globalping.io/v1"
-    PROBE_BUDGET: Final[int] = 48
+    PROBE_BUDGET: Final[int] = CHECK_PROBE_BUDGET
     PROBES_MIN: Final[int] = 3
     PROBES_MAX: Final[int] = 8
     DIRECT_TIMEOUT: Final[float] = 8.0
     POLL_ATTEMPTS: Final[int] = 10
     POLL_DELAY: Final[float] = 5.0
+
+    def __init__(self, config: AppConfig) -> None:
+        token = config.globalping_token
+        self.headers = {"Authorization": f"Bearer {token.get_secret_value()}"} if token else {}
+
+    def _client(self) -> AsyncClient:
+        return AsyncClient(base_url=self.API_BASE, timeout=Timeout(20.0), headers=self.headers)
+
+    async def quota(self) -> Optional[ProbeQuotaDto]:
+        async with self._client() as client:
+            return await self._quota(client)
+
+    async def _quota(self, client: AsyncClient) -> Optional[ProbeQuotaDto]:
+        try:
+            response = await client.get("/limits")
+            response.raise_for_status()
+            create = response.json()["rateLimit"]["measurements"]["create"]
+            return ProbeQuotaDto(
+                remaining=int(create["remaining"]),
+                reset_seconds=int(create["reset"]),
+            )
+        except (HTTPError, ValueError, KeyError, TypeError) as e:
+            logger.warning(f"Globalping limits are not available: {e!r}")
+            return None
 
     async def probe(self, targets: list[ProbeTargetDto]) -> dict[ProbeTargetDto, ProbeResultDto]:
         if not targets:
@@ -135,7 +162,17 @@ class GlobalpingProber(FleetProber):
     async def _remote(self, targets: list[ProbeTargetDto]) -> dict[ProbeTargetDto, tuple[int, int]]:
         limit = max(self.PROBES_MIN, min(self.PROBES_MAX, self.PROBE_BUDGET // len(targets)))
         try:
-            async with AsyncClient(base_url=self.API_BASE, timeout=Timeout(20.0)) as client:
+            async with self._client() as client:
+                quota = await self._quota(client)
+                if quota is not None:
+                    affordable = quota.remaining // len(targets)
+                    if affordable < self.PROBES_MIN:
+                        logger.warning(
+                            f"Globalping allows {quota.remaining} more probe-tests (refill in "
+                            f"{quota.reset_seconds}s): remote probes skipped"
+                        )
+                        return {}
+                    limit = min(limit, affordable)
                 ids = await self._start(client, targets, limit)
                 return await self._collect(client, ids)
         except (HTTPError, ValueError, KeyError) as e:
