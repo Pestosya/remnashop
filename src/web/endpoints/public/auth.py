@@ -66,6 +66,7 @@ def _to_me_response(user: UserDto) -> MeResponse:
         name=user.name,
         username=user.username,
         language=user.language.value,
+        available_bonus_balance=user.points,
     )
 
 

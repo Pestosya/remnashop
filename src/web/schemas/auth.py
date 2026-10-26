@@ -64,6 +64,9 @@ class MeResponse(BaseModel):
     name: str
     username: Optional[str]
     language: str
+    # referral bonus points (users.points); here too because /referral/program is closed to
+    # users without an active subscription, and they are the ones who can renew with points
+    available_bonus_balance: int
 
 
 class ChangePasswordResponse(BaseModel):

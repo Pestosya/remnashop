@@ -18,3 +18,5 @@ class ReferralProgramResponse(BaseModel):
     accrual_strategy: str
     max_level: int
     reward_levels: list[ReferralRewardLevelResponse]
+    # referral bonus points the user has now (users.points), as the bot shows them
+    available_bonus_balance: int

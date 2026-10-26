@@ -69,4 +69,5 @@ async def get_referral_program(
         accrual_strategy=settings.referral.accrual_strategy.value,
         max_level=settings.referral.level.value,
         reward_levels=reward_levels,
+        available_bonus_balance=user.points,
     )
