@@ -53,7 +53,7 @@ const daysFromNow = (days: number): string =>
   new Date(Date.now() + days * 86_400_000).toISOString();
 
 const me: MeResponse = {
-  telegram_id: 498278932,
+  telegram_id: 9_000_000_000_000_001,
   auth_type: "TELEGRAM",
   email: null,
   is_email_verified: true,
@@ -64,7 +64,7 @@ const me: MeResponse = {
 };
 
 const subscription: SubscriptionInfoResponse = {
-  user_remna_id: "433",
+  user_remna_id: "demo-user-001",
   status: "ACTIVE",
   is_trial: false,
   traffic_limit: 100,
@@ -94,14 +94,14 @@ const devices: DevicesResponse = {
   max_count: 3,
   devices: [
     {
-      hwid: "8f14e45fceea167a5a36dedd4bea2543",
+      hwid: "demo-ios-device-001",
       platform: "iOS",
       device_model: "iPhone 15 Pro",
       os_version: "18.2",
       user_agent: "Happ/2.1 iOS",
     },
     {
-      hwid: "c9f0f895fb98ab9159f51fd0297e236d",
+      hwid: "demo-windows-device-002",
       platform: "Windows",
       device_model: "PC",
       os_version: "11",
@@ -110,14 +110,10 @@ const devices: DevicesResponse = {
   ],
 };
 
-const price = (
-  gateway_type: "YOOKASSA" | "CRYPTOMUS",
-  amount: string,
-  discount = 0,
-) => ({
-  gateway_type,
-  currency: gateway_type === "YOOKASSA" ? "RUB" : "USD",
-  currency_symbol: gateway_type === "YOOKASSA" ? "₽" : "$",
+const price = (amount: string, discount = 0) => ({
+  gateway_type: "YOOKASSA" as const,
+  currency: "RUB",
+  currency_symbol: "₽",
   original_amount: amount,
   discount_percent: discount,
   final_amount:
@@ -125,18 +121,10 @@ const price = (
   is_free: false,
 });
 
-const prices = (rub: string, usd: string, discount = 0) => [
-  price("YOOKASSA", rub, discount),
-  price("CRYPTOMUS", usd, discount),
-];
-
 const offers: SubscriptionOffersResponse = {
   has_current_subscription: true,
   current_subscription_status: "ACTIVE",
-  gateways: [
-    { gateway_type: "YOOKASSA", currency: "RUB", currency_symbol: "₽" },
-    { gateway_type: "CRYPTOMUS", currency: "USD", currency_symbol: "$" },
-  ],
+  gateways: [{ gateway_type: "YOOKASSA", currency: "RUB", currency_symbol: "₽" }],
   plans: [
     {
       id: 1,
@@ -148,9 +136,9 @@ const offers: SubscriptionOffersResponse = {
       type: "BOTH",
       recommended_purchase_type: "RENEW",
       durations: [
-        { days: 30, prices: prices("199", "3") },
-        { days: 90, prices: prices("597", "10", 10) },
-        { days: 365, prices: prices("2388", "40", 25) },
+        { days: 30, prices: [price("199")] },
+        { days: 90, prices: [price("597", 10)] },
+        { days: 365, prices: [price("2388", 25)] },
       ],
     },
     {
@@ -163,8 +151,8 @@ const offers: SubscriptionOffersResponse = {
       type: "BOTH",
       recommended_purchase_type: "CHANGE",
       durations: [
-        { days: 30, prices: prices("349", "5") },
-        { days: 90, prices: prices("1047", "20", 10) },
+        { days: 30, prices: [price("349")] },
+        { days: 90, prices: [price("1047", 10)] },
       ],
     },
   ],
@@ -176,9 +164,9 @@ const referral: ReferralProgramResponse = {
   referral_link: "https://t.me/your_bot?start=ref_demo123",
   invited_count: 7,
   invited_with_payment_count: 3,
-  reward_type: "DAYS",
+  reward_type: "POINTS",
   reward_strategy: "PERCENT",
-  accrual_strategy: "ON_PAYMENT",
+  accrual_strategy: "ON_EACH_PAYMENT",
   max_level: 2,
   reward_levels: [
     { level: 1, value: 20 },
@@ -223,7 +211,8 @@ export const demoApi: typeof realApi = {
         gateways: [],
       }),
     trialPurchase: () => delay(payment),
-    promocode: () => delay<PromocodeActivateResponse>({ success: true, reward_type: "DAYS" }),
+    promocode: () =>
+      delay<PromocodeActivateResponse>({ success: true, reward_type: "DURATION" }),
   },
   devices: {
     list: () => delay(devices),

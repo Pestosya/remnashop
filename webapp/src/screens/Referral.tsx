@@ -1,5 +1,5 @@
 import { ApiError, api } from "../api";
-import { t } from "../i18n";
+import { formatExtraDays, formatNumber, formatPoints, t } from "../i18n";
 import { copy, shareLink } from "../telegram";
 import type { ReferralProgramResponse, ReferralRewardLevelResponse } from "../types";
 import {
@@ -26,14 +26,6 @@ function gateReason(error: Error): string | null {
   return t("referralDisabled");
 }
 
-const numberFormatter = new Intl.NumberFormat(undefined, {
-  maximumFractionDigits: 2,
-});
-
-function formatNumber(value: number): string {
-  return numberFormatter.format(value);
-}
-
 function readBonusBalance(value: number | undefined): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value : undefined;
 }
@@ -43,14 +35,30 @@ function formatReward(
   program: ReferralProgramResponse,
   level: ReferralRewardLevelResponse,
 ): string | null {
-  const value = formatNumber(level.value);
+  const rewardStrategy = program.reward_strategy.toUpperCase();
+  const rewardType = program.reward_type.toUpperCase();
 
-  if (program.reward_strategy.toUpperCase() === "PERCENT") return `${value}%`;
-  if (program.reward_type.toUpperCase() === "DAYS") {
-    return t("referralRewardDays", { value });
-  }
+  if (rewardStrategy === "PERCENT") return `${formatNumber(level.value)}%`;
+  if (rewardStrategy !== "AMOUNT") return null;
+  if (rewardType === "POINTS") return formatPoints(level.value);
+  if (rewardType === "EXTRA_DAYS") return formatExtraDays(level.value);
 
   return null;
+}
+
+function accrualRule(strategy: string): string | null {
+  if (strategy.toUpperCase() === "ON_EACH_PAYMENT") return t("referralRuleEachPayment");
+  if (strategy.toUpperCase() === "ON_FIRST_PAYMENT") return t("referralRuleFirstPayment");
+  return null;
+}
+
+function levelRule(level: ReferralRewardLevelResponse, reward: string): string {
+  if (level.level === 1) return t("referralRuleFirstLevel", { reward });
+  if (level.level === 2) return t("referralRuleSecondLevel", { reward });
+  return t("referralRuleLevel", {
+    level: formatNumber(level.level),
+    reward,
+  });
 }
 
 function CrystalIcon() {
@@ -94,7 +102,7 @@ function BalanceCard({ balance }: { balance: number }) {
       </span>
       <span className="referral-balance-copy">
         <span className="referral-stat-label">{t("availableBonusBalance")}</span>
-        <strong>{t("bonusPoints", { value: formatNumber(balance) })}</strong>
+        <strong>{formatPoints(balance)}</strong>
         <span className="referral-balance-hint">{t("bonusBalanceHint")}</span>
       </span>
     </article>
@@ -162,6 +170,7 @@ export default function ReferralScreen() {
     );
   const firstLevelReward =
     rewardLevels.find((entry) => entry.level.level === 1)?.reward ?? rewardLevels[0]?.reward;
+  const paymentRule = accrualRule(data.accrual_strategy);
 
   const copyCode = () =>
     perform(async () => {
@@ -208,17 +217,10 @@ export default function ReferralScreen() {
         </div>
         <ul className="referral-rules-list">
           <li>{t("referralRuleLink")}</li>
-          {data.accrual_strategy.toUpperCase() === "ON_PAYMENT" && (
-            <li>{t("referralRulePayment")}</li>
-          )}
+          {paymentRule && <li>{paymentRule}</li>}
           <li>{t("referralRuleLevels")}</li>
           {rewardLevels.map(({ level, reward }) => (
-            <li key={level.level}>
-              {t("referralRuleLevel", {
-                level: formatNumber(level.level),
-                reward,
-              })}
-            </li>
+            <li key={level.level}>{levelRule(level, reward)}</li>
           ))}
           {rewardLevels.length === 0 && <li>{t("referralRuleProgram")}</li>}
           <li>{t("referralRuleFullPayment")}</li>

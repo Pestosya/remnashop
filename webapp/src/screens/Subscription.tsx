@@ -32,7 +32,7 @@ function SubscriptionHeader() {
     <header className="subscription-header">
       <img
         className="subscription-brand-mark"
-        src="/app/h2o-logo.png"
+        src={`${import.meta.env.BASE_URL}h2o-logo.png`}
         alt=""
         aria-hidden="true"
       />

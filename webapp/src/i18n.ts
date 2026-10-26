@@ -80,7 +80,6 @@ const ru = {
   referralTitle: "Приглашайте друзей",
   referralHint: "Делитесь персональной ссылкой и получайте бонусы по условиям программы",
   referralRewardSummary: "Вознаграждение первого уровня — {reward}",
-  referralRewardDays: "{value} дн.",
   referralStats: "Статистика реферальной программы",
   yourLink: "Ваша ссылка",
   referralLinkHint: "Отправьте её другу — приглашение будет привязано к вашему аккаунту.",
@@ -88,17 +87,19 @@ const ru = {
   invited: "Приглашено",
   invitedPaid: "С покупкой",
   availableBonusBalance: "Доступный бонусный баланс",
-  bonusPoints: "{value} баллов",
   bonusBalanceHint: "Доступно для полной оплаты подписки",
   referralRules: "Как это работает",
   referralRuleLink: "Друг переходит по вашей персональной ссылке.",
-  referralRulePayment: "Бонус начисляется после покупки приглашённого пользователя.",
+  referralRuleFirstPayment: "Вознаграждение начисляется после первой оплаты приглашённого.",
+  referralRuleEachPayment: "Вознаграждение начисляется с каждой оплаты приглашённого.",
   referralRuleLevels: "Бонусы начисляются по уровням реферальной программы.",
   referralRuleProgram: "Размер и условия бонуса определяются действующей программой.",
   referralRuleLevel: "Уровень {level} — {reward}",
+  referralRuleFirstLevel: "{reward} от оплат приглашённых друзей.",
+  referralRuleSecondLevel: "{reward} от оплат друзей ваших друзей.",
   referralRuleFullPayment: "При достаточном балансе бонусами можно полностью оплатить подписку.",
   referralRuleNoPartial: "Частичная оплата бонусами не поддерживается.",
-  referralRuleBotPayment: "Оплата бонусами доступна в Telegram-боте; в WebApp она пока не реализована.",
+  referralRuleBotPayment: "Оплатить подписку бонусами можно в Telegram-боте.",
   referralDisabled: "Реферальная программа отключена",
   referralNeedsSubscription: "Программа доступна с активной подпиской",
   referralNeedsEmail: "Подтвердите почту, чтобы участвовать в программе",
@@ -191,7 +192,6 @@ const en: Dict = {
   referralTitle: "Invite friends",
   referralHint: "Share your personal link and earn bonuses under the program rules",
   referralRewardSummary: "First-level reward — {reward}",
-  referralRewardDays: "{value} days",
   referralStats: "Referral program statistics",
   yourLink: "Your link",
   referralLinkHint: "Send it to a friend so their invitation is linked to your account.",
@@ -199,17 +199,19 @@ const en: Dict = {
   invited: "Invited",
   invitedPaid: "Subscribed",
   availableBonusBalance: "Available bonus balance",
-  bonusPoints: "{value} points",
   bonusBalanceHint: "Available for full subscription payment",
   referralRules: "How it works",
   referralRuleLink: "A friend follows your personal referral link.",
-  referralRulePayment: "The bonus is credited after the invited user makes a purchase.",
+  referralRuleFirstPayment: "The reward is credited after the invited user's first payment.",
+  referralRuleEachPayment: "The reward is credited after every payment by the invited user.",
   referralRuleLevels: "Bonuses are awarded across the referral program levels.",
   referralRuleProgram: "Bonus amounts and conditions follow the active program.",
   referralRuleLevel: "Level {level} — {reward}",
+  referralRuleFirstLevel: "{reward} from payments made by invited friends.",
+  referralRuleSecondLevel: "{reward} from payments made by your friends' friends.",
   referralRuleFullPayment: "With sufficient balance, bonuses can pay for the subscription in full.",
   referralRuleNoPartial: "Partial payment with bonuses is not supported.",
-  referralRuleBotPayment: "Bonus payment is available in the Telegram bot and is not yet implemented in the WebApp.",
+  referralRuleBotPayment: "You can pay for a subscription with bonuses in the Telegram bot.",
   referralDisabled: "Referral program is disabled",
   referralNeedsSubscription: "Available once you have an active subscription",
   referralNeedsEmail: "Verify your email to join the program",
@@ -219,13 +221,61 @@ const en: Dict = {
   openInTelegram: "Open the cabinet from the bot in Telegram",
 };
 
-const DICTS: Record<string, Dict> = { ru, en };
+type Locale = "ru" | "en";
 
+const DICTS: Record<Locale, Dict> = { ru, en };
+const NUMBER_FORMATTERS: Record<Locale, Intl.NumberFormat> = {
+  ru: new Intl.NumberFormat("ru", { maximumFractionDigits: 2 }),
+  en: new Intl.NumberFormat("en", { maximumFractionDigits: 2 }),
+};
+const PLURAL_RULES: Record<Locale, Intl.PluralRules> = {
+  ru: new Intl.PluralRules("ru"),
+  en: new Intl.PluralRules("en"),
+};
+
+let activeLocale: Locale = "ru";
 let active: Dict = ru;
 
 export function setLocale(language: string | null | undefined): void {
   const code = (language ?? "").slice(0, 2).toLowerCase();
-  active = DICTS[code] ?? en;
+  activeLocale = code === "ru" ? "ru" : "en";
+  active = DICTS[activeLocale];
+}
+
+export function formatNumber(value: number): string {
+  return NUMBER_FORMATTERS[activeLocale].format(value);
+}
+
+export function formatPoints(value: number): string {
+  const plural = PLURAL_RULES[activeLocale].select(value);
+  const unit =
+    activeLocale === "ru"
+      ? plural === "one"
+        ? "балл"
+        : plural === "few"
+          ? "балла"
+          : "баллов"
+      : plural === "one"
+        ? "point"
+        : "points";
+
+  return `${formatNumber(value)} ${unit}`;
+}
+
+export function formatExtraDays(value: number): string {
+  const plural = PLURAL_RULES[activeLocale].select(value);
+  const unit =
+    activeLocale === "ru"
+      ? plural === "one"
+        ? "доп. день"
+        : plural === "few"
+          ? "доп. дня"
+          : "доп. дней"
+      : plural === "one"
+        ? "extra day"
+        : "extra days";
+
+  return `${formatNumber(value)} ${unit}`;
 }
 
 export function t(key: MessageKey, vars?: Record<string, string>): string {

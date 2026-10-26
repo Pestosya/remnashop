@@ -127,6 +127,10 @@ export interface ReferralRewardLevelResponse {
   value: number;
 }
 
+export type ReferralRewardType = "POINTS" | "EXTRA_DAYS";
+export type ReferralRewardStrategy = "AMOUNT" | "PERCENT";
+export type ReferralAccrualStrategy = "ON_FIRST_PAYMENT" | "ON_EACH_PAYMENT";
+
 export interface ReferralProgramResponse {
   enabled: boolean;
   referral_code: string;
@@ -135,9 +139,9 @@ export interface ReferralProgramResponse {
   invited_with_payment_count: number;
   /** Omitted by older API versions; /auth/me remains the primary source. */
   available_bonus_balance?: number;
-  reward_type: string;
-  reward_strategy: string;
-  accrual_strategy: string;
+  reward_type: ReferralRewardType;
+  reward_strategy: ReferralRewardStrategy;
+  accrual_strategy: ReferralAccrualStrategy;
   max_level: number;
   reward_levels: ReferralRewardLevelResponse[];
 }
