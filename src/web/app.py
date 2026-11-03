@@ -8,7 +8,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from src.__version__ import __version__
 from src.core.config import AppConfig
-from src.core.constants import WEBAPP_DIR
+from src.core.constants import LANDING_DIR, WEBAPP_DIR
 from src.lifespan import lifespan
 
 from .endpoints import (
@@ -18,7 +18,7 @@ from .endpoints import (
     public_router,
     remnawave_router,
 )
-from .spa import mount_webapp
+from .spa import mount_landing, mount_webapp
 
 
 def resolve_cors(origins: list[str]) -> tuple[list[str], bool]:
@@ -87,6 +87,11 @@ def get_app(config: AppConfig, dispatcher: Dispatcher) -> FastAPI:
 
     app.state.telegram_webhook_endpoint = telegram_webhook_endpoint
     app.state.dispatcher = dispatcher
+
+    # The landing catches every path no route claims: it goes after all routes,
+    # the Telegram webhook above included.
+    if config.web_enabled:
+        mount_landing(app, LANDING_DIR)
 
     logger.info("FastAPI application initialized'")
     return app

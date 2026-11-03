@@ -52,3 +52,18 @@ def mount_webapp(app: FastAPI, directory: Path) -> bool:
     )
     logger.info(f"Mini App mounted at '{WEBAPP_MOUNT_PATH}' from '{directory}'")
     return True
+
+
+def mount_landing(app: FastAPI, directory: Path) -> bool:
+    """Mount the public landing page (static files) at the site root.
+
+    It answers every path no route claims, so it must be mounted after all routes,
+    the Telegram webhook included. Returns whether it was mounted.
+    """
+    if not (directory / "index.html").is_file():
+        logger.info(f"Landing not found at '{directory}', skipping mount")
+        return False
+
+    app.mount("/", StaticFiles(directory=directory, html=True), name="landing")
+    logger.info(f"Landing mounted at '/' from '{directory}'")
+    return True

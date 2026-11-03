@@ -17,6 +17,7 @@ LOG_DIR: Final[Path] = BASE_DIR / "logs"
 # Built Telegram Mini App. Points at the Vite output rather than the source
 # directory, which also carries an index.html that must never be served.
 WEBAPP_DIR: Final[Path] = BASE_DIR / "webapp" / "dist"
+LANDING_DIR: Final[Path] = BASE_DIR / "landing"
 
 # Per-currency default price for a freshly added plan duration (mirrors the
 # configurator's 30-day tier). Avoids the absurd USD=100 shared default.

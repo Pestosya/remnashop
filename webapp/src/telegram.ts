@@ -170,7 +170,8 @@ export function openPayment(url: string): Promise<string | null> {
   const app = webApp();
 
   if (!app) {
-    window.open(url, "_blank", "noopener");
+    // The payment page sends the buyer back to the cabinet (`?paid=1`).
+    window.location.assign(url);
     return Promise.resolve(null);
   }
 

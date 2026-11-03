@@ -1,8 +1,9 @@
 from typing import Optional
+from urllib.parse import urlsplit
 
 from dishka import FromDishka
 from dishka.integrations.fastapi import inject
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Request, status
 from remnapy.models.hwid import HwidDeviceDto
 
 from src.application.common import Remnawave
@@ -36,6 +37,7 @@ from src.application.use_cases.subscription.commands.purchase import (
     ActivateTrialSubscriptionDto,
 )
 from src.application.use_cases.user.queries.plans import GetAvailablePlans, GetAvailableTrial
+from src.core.config import AppConfig
 from src.core.enums import (
     PaymentGatewayType,
     PurchaseType,
@@ -69,6 +71,7 @@ from src.web.schemas import (
     TrialActivateResponse,
     TrialPurchaseRequest,
 )
+from src.web.spa import WEBAPP_MOUNT_PATH
 
 from ._common import CurrentUser, describe_plan_for_web
 
@@ -109,6 +112,32 @@ def _assert_web_purchase_email_verified(user: UserDto) -> None:
         status_code=status.HTTP_409_CONFLICT,
         detail="Email must be verified before purchasing or extending a subscription",
     )
+
+
+def _site_return_url(request: Request, config: AppConfig, wanted: bool) -> Optional[str]:
+    """The cabinet a website buyer comes back to after paying (None: back to the bot).
+
+    The cabinet is served on every domain proxied to this app, and the session cookie
+    belongs to that domain, so the buyer returns to the site they paid from. Only hosts
+    this app answers on qualify (the configured ones and the host the request came to,
+    which the reverse proxy only passes for its own sites); a forged Origin falls back to
+    WEB_CABINET_URL instead of turning the payment page into an open redirect.
+    """
+    if not wanted:
+        return None
+    allowed = {config.domain.get_secret_value().lower()}
+    if request.url.hostname:
+        allowed.add(request.url.hostname.lower())
+    for url in [config.web_cabinet_url, *config.origins]:
+        host = urlsplit(url).hostname if "://" in url else url.strip()
+        if host and host != "*":
+            allowed.add(host.lower())
+    origin = urlsplit(request.headers.get("origin") or "")
+    if origin.scheme == "https" and origin.hostname and origin.hostname.lower() in allowed:
+        return f"https://{origin.netloc}{WEBAPP_MOUNT_PATH}/?paid=1"
+    if config.web_cabinet_url:
+        return config.web_cabinet_url.rstrip("/") + "/?paid=1"
+    return None
 
 
 async def _get_available_plan_by_code(
@@ -338,7 +367,9 @@ async def activate_trial_web(
 @inject
 async def purchase_trial_web(
     body: TrialPurchaseRequest,
+    request: Request,
     user: CurrentUser,
+    config: FromDishka[AppConfig],
     settings_dao: FromDishka[SettingsDao],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
@@ -379,6 +410,7 @@ async def purchase_trial_web(
             pricing=pricing,
             purchase_type=PurchaseType.NEW,
             gateway_type=body.gateway_type,
+            return_url=_site_return_url(request, config, body.return_to_site),
         ),
     )
 
@@ -408,7 +440,9 @@ async def purchase_trial_web(
 @inject
 async def purchase_subscription(
     body: PurchaseRequest,
+    request: Request,
     user: CurrentUser,
+    config: FromDishka[AppConfig],
     subscription_dao: FromDishka[SubscriptionDao],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
@@ -450,6 +484,7 @@ async def purchase_subscription(
             pricing=pricing,
             purchase_type=purchase_type,
             gateway_type=body.gateway_type,
+            return_url=_site_return_url(request, config, body.return_to_site),
         ),
     )
 
@@ -479,7 +514,9 @@ async def purchase_subscription(
 @inject
 async def extend_subscription(
     body: ExtendRequest,
+    request: Request,
     user: CurrentUser,
+    config: FromDishka[AppConfig],
     subscription_dao: FromDishka[SubscriptionDao],
     payment_gateway_dao: FromDishka[PaymentGatewayDao],
     pricing_service: FromDishka[PricingService],
@@ -529,6 +566,7 @@ async def extend_subscription(
             pricing=pricing,
             purchase_type=PurchaseType.RENEW,
             gateway_type=body.gateway_type,
+            return_url=_site_return_url(request, config, body.return_to_site),
         ),
     )
 

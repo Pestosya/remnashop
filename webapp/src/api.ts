@@ -1,5 +1,5 @@
 import { demoApi, isDemo } from "./demo";
-import { initData } from "./telegram";
+import { initData, isTelegram } from "./telegram";
 import type {
   DevicesResponse,
   MeResponse,
@@ -101,8 +101,28 @@ export async function login(): Promise<boolean> {
   }
 }
 
+// Bought on the website (not inside Telegram): the payment page returns to this cabinet.
+const site = () => ({ return_to_site: !isTelegram() });
+
 export const realApi = {
   me: () => request<MeResponse>("GET", "/auth/me"),
+
+  // Email accounts for buyers without Telegram. Sessions ride on the same cookies.
+  auth: {
+    register: (email: string, password: string) =>
+      request<unknown>("POST", "/auth/register", { email, password }, { retry: false }),
+    login: (email: string, password: string) =>
+      request<unknown>("POST", "/auth/login", { email, password }, { retry: false }),
+    logout: () => request<unknown>("POST", "/auth/logout", undefined, { retry: false }),
+    requestCode: () =>
+      request<{ success: boolean; target_email: string; expires_at: string }>(
+        "POST",
+        "/auth/email/request-verification",
+        {},
+      ),
+    confirmCode: (code: string) =>
+      request<{ success: boolean; email: string }>("POST", "/auth/email/confirm", { code }),
+  },
 
   subscription: {
     // The endpoint answers `null` when the user has no subscription yet.
@@ -114,15 +134,20 @@ export const realApi = {
         plan_code,
         duration_days,
         gateway_type,
+        ...site(),
       }),
     extend: (duration_days: number, gateway_type: PaymentGatewayType) =>
       request<PaymentInitResponse>("POST", "/subscription/extend", {
         duration_days,
         gateway_type,
+        ...site(),
       }),
     trial: () => request<TrialActivateResponse>("POST", "/subscription/trial"),
     trialPurchase: (gateway_type: PaymentGatewayType) =>
-      request<PaymentInitResponse>("POST", "/subscription/trial/purchase", { gateway_type }),
+      request<PaymentInitResponse>("POST", "/subscription/trial/purchase", {
+        gateway_type,
+        ...site(),
+      }),
     promocode: (code: string) =>
       request<PromocodeActivateResponse>("POST", "/subscription/promocode", { code }),
   },

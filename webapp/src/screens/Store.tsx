@@ -1,3 +1,4 @@
+import { useSearchParams } from "react-router-dom";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
 import { t } from "../i18n";
@@ -109,9 +110,14 @@ function StoreForm({
   const toast = useToast();
   const [busy, perform] = useAction();
 
-  // Default to the plan the backend recommends renewing, else the first one.
+  // The plan picked on the landing (?plan=<code>), else the one the backend recommends
+  // renewing, else the first one.
+  const [search] = useSearchParams();
+  const wanted = search.get("plan");
   const defaultPlan =
-    offers.plans.find((plan) => plan.recommended_purchase_type === "RENEW") ?? offers.plans[0]!;
+    offers.plans.find((plan) => plan.public_code === wanted) ??
+    offers.plans.find((plan) => plan.recommended_purchase_type === "RENEW") ??
+    offers.plans[0]!;
 
   const [planCode, setPlanCode] = useState<string>(defaultPlan.public_code);
   const [gateway, setGateway] = useState<PaymentGatewayType>(offers.gateways[0]!.gateway_type);

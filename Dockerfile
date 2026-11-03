@@ -37,6 +37,7 @@ ENV PYTHONPATH=/opt/remnashop
 COPY ./src ./src
 COPY ./assets /opt/remnashop/assets.default
 COPY --from=webapp /build/dist /opt/remnashop/webapp/dist
+COPY ./landing /opt/remnashop/landing
 
 COPY ./docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh

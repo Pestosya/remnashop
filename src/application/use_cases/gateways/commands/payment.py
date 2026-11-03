@@ -1,5 +1,6 @@
 import uuid
 from dataclasses import dataclass
+from typing import Optional
 from uuid import UUID
 
 from loguru import logger
@@ -142,6 +143,8 @@ class CreatePaymentDto:
     pricing: PriceDetailsDto
     purchase_type: PurchaseType
     gateway_type: PaymentGatewayType
+    # where the payment page sends the payer afterwards; None keeps the bot
+    return_url: Optional[str] = None
 
 
 class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
@@ -163,6 +166,7 @@ class CreatePayment(Interactor[CreatePaymentDto, PaymentResultDto]):
 
     async def _execute(self, actor: UserDto, data: CreatePaymentDto) -> PaymentResultDto:
         gateway_instance = await self.get_payment_gateway_instance.system(data.gateway_type)
+        gateway_instance.use_return_url(data.return_url)
         i18n = self.translator_hub.get_translator_by_locale(actor.language)
 
         key, kw = i18n_format_days(data.plan_snapshot.duration)

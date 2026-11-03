@@ -55,6 +55,8 @@ class PromocodeActivateResponse(BaseModel):
 
 class TrialPurchaseRequest(BaseModel):
     gateway_type: PaymentGatewayType
+    # bought on the website (not inside Telegram): the payment page returns to the cabinet
+    return_to_site: bool = False
 
 
 class ReissueResponse(BaseModel):
@@ -67,11 +69,13 @@ class PurchaseRequest(BaseModel):
     plan_code: str = Field(min_length=3, max_length=64)
     duration_days: int = Field(ge=0)
     gateway_type: PaymentGatewayType
+    return_to_site: bool = False
 
 
 class ExtendRequest(BaseModel):
     duration_days: int = Field(ge=0)
     gateway_type: PaymentGatewayType
+    return_to_site: bool = False
 
 
 class PaymentInitResponse(BaseModel):

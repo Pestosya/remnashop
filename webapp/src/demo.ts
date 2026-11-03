@@ -159,6 +159,14 @@ const payment: PaymentInitResponse = {
 // Typed against the real client so a signature change here fails the build.
 export const demoApi: typeof realApi = {
   me: () => delay(me),
+  auth: {
+    register: () => delay({}),
+    login: () => delay({}),
+    logout: () => delay({}),
+    requestCode: () =>
+      delay({ success: true, target_email: "demo@example.com", expires_at: new Date().toISOString() }),
+    confirmCode: () => delay({ success: true, email: "demo@example.com" }),
+  },
   subscription: {
     current: () => delay(subscription),
     offers: () => delay(offers),

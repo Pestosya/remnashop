@@ -34,8 +34,14 @@ class BasePaymentGateway(ABC):
         self.bot = bot
         self.config = config
         self._bot_username: Optional[str] = None
+        self._return_url: Optional[str] = None
 
         logger.debug(f"{self.__class__.__name__} Initialized")
+
+    def use_return_url(self, url: Optional[str]) -> None:
+        """Send the payer back to `url` instead of the bot (purchases made on the website).
+        An instance serves one payment, so this never leaks into another one."""
+        self._return_url = url or None
 
     @abstractmethod
     async def handle_create_payment(self, amount: Decimal, details: str) -> PaymentResultDto: ...
@@ -50,6 +56,8 @@ class BasePaymentGateway(ABC):
         return Response(status_code=200)
 
     async def _get_bot_redirect_url(self) -> str:
+        if self._return_url:
+            return self._return_url
         if self._bot_username is None:
             self._bot_username = (await self.bot.get_me()).username
         return f"{T_ME}{self._bot_username}"

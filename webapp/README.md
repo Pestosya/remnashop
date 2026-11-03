@@ -40,6 +40,15 @@ npm run build      # type-checks, then emits dist/
 npm run typecheck  # types only
 ```
 
+## Website sign-in (buyers without Telegram)
+
+Outside Telegram the cabinet shows email sign-up / sign-in (`/auth/register`, `/auth/login`)
+and then asks for the 6-digit code from the email (`/auth/email/request-verification`,
+`/auth/email/confirm`): the backend lets only verified web accounts buy. That needs
+`EMAIL_ENABLED=true` and the `EMAIL_*` SMTP settings. Purchases made there send
+`return_to_site`, so the payment page returns to `/app/?paid=1` on the same site instead of
+the bot. The landing (`landing/`, served at `/`) links to `/app/` and `/app/store?plan=<code>`.
+
 ## Enabling it in production
 
 ```env
