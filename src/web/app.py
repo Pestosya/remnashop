@@ -88,8 +88,7 @@ def get_app(config: AppConfig, dispatcher: Dispatcher) -> FastAPI:
     app.state.telegram_webhook_endpoint = telegram_webhook_endpoint
     app.state.dispatcher = dispatcher
 
-    # The landing catches every path no route claims: it goes after all routes,
-    # the Telegram webhook above included.
+    # The landing claims only its own paths; it goes last so no route above is shadowed.
     if config.web_enabled:
         mount_landing(app, LANDING_DIR)
 
