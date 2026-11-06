@@ -10,6 +10,7 @@ from loguru import logger
 
 from src.core.config import AppConfig
 from src.telegram.button_icons import ButtonIconsMiddleware
+from src.telegram.network_retry import ConnectRetryMiddleware
 
 
 def _normalize_proxy_url(url: str) -> str:
@@ -43,4 +44,6 @@ class BotProvider(Provider):
             session=session,
         ) as bot:
             bot.session.middleware(ButtonIconsMiddleware())
+            # registered last = closest to the network: each attempt of the layers above is covered
+            bot.session.middleware(ConnectRetryMiddleware())
             yield bot
