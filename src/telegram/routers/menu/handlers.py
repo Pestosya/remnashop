@@ -36,6 +36,7 @@ from src.application.use_cases.subscription.commands.purchase import (
 )
 from src.application.use_cases.user.commands.profile_edit import ResetOwnReferralCode
 from src.application.use_cases.user.queries.plans import GetAvailableTrial
+from src.core.config import AppConfig
 from src.core.constants import (
     POINTS_DAYS_KEY,
     POINTS_FROM_PAYMENT_KEY,
@@ -54,6 +55,7 @@ from src.core.utils.time import get_traffic_reset_delta
 from src.telegram.keyboards import CALLBACK_CHANNEL_CONFIRM, CALLBACK_RULES_ACCEPT
 from src.telegram.routers.subscription.handlers import purchase_shortcut
 from src.telegram.states import MainMenu, Subscription
+from src.telegram.utils import notify_reissued
 
 # what a caller may hand to the menu dialog when it opens one of its screens
 MENU_START_KEYS = (POINTS_PLAN_KEY, POINTS_DAYS_KEY, POINTS_FROM_PAYMENT_KEY)
@@ -230,6 +232,8 @@ async def on_reissue_subscription_confirm(
     widget: Button,
     dialog_manager: DialogManager,
     reissue_subscription: FromDishka[ReissueSubscription],
+    subscription_dao: FromDishka[SubscriptionDao],
+    config: FromDishka[AppConfig],
     notifier: FromDishka[Notifier],
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
@@ -244,7 +248,8 @@ async def on_reissue_subscription_confirm(
             ),
         )
         return
-    await notifier.notify_user(user=user, i18n_key="ntf-devices.reissued")
+    subscription = await subscription_dao.get_current(user.id)
+    await notify_reissued(notifier, user, subscription, config.bot)
     await dialog_manager.switch_to(state=MainMenu.DEVICES)
 
 

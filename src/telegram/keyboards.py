@@ -1,7 +1,7 @@
 from typing import Any, Callable, Final, Optional, Sequence
 
 from aiogram.enums import ButtonStyle
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram_dialog import StartMode
 from aiogram_dialog.widgets.kbd import Keyboard
@@ -9,6 +9,7 @@ from aiogram_dialog.widgets.style import Style
 from aiogram_dialog.widgets.text import Format
 from magic_filter import F
 
+from src.core.config.bot import BotConfig
 from src.core.constants import DOCS, GOTO_PREFIX, PAYMENT_PREFIX, REPOSITORY, T_ME
 from src.core.enums import ButtonType, PurchaseType
 from src.telegram.states import DashboardUser, MainMenu, Notification, Subscription
@@ -176,6 +177,16 @@ def get_broadcast_buttons(support_url: str, is_referral_enable: bool) -> list[In
     buttons.append(get_close_notification_button())
 
     return buttons
+
+
+def get_connect_keyboard(bot_config: BotConfig, subscription_url: str) -> InlineKeyboardMarkup:
+    """«🚀 Подключиться» under a message, leading where the main menu's button does."""
+    url = bot_config.mini_app_url if isinstance(bot_config.mini_app_url, str) else subscription_url
+    target: dict[str, Any] = (
+        {"web_app": WebAppInfo(url=url)} if bot_config.is_mini_app else {"url": url}
+    )
+    button = InlineKeyboardButton(text="btn-menu.connect", style=ButtonStyle.PRIMARY, **target)
+    return InlineKeyboardMarkup(inline_keyboard=[[button]])
 
 
 def get_renew_keyboard() -> InlineKeyboardMarkup:

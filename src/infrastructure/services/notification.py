@@ -487,8 +487,9 @@ class NotificationService(Notifier):
         if disable_default_markup or delete_after is not None:
             return translated_markup
 
-        if isinstance(translated_markup, InlineKeyboardMarkup):
-            builder = InlineKeyboardBuilder.from_markup(translated_markup)
+        if isinstance(reply_markup, InlineKeyboardMarkup):
+            # translate once: a second pass looks the ready texts up as keys and logs warnings
+            builder = InlineKeyboardBuilder.from_markup(reply_markup)
             builder.row(get_close_notification_button())
             return self._translate_keyboard_text(builder.as_markup(), locale)
 

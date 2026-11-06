@@ -64,6 +64,7 @@ from src.application.use_cases.user.commands.profile_edit import (
 from src.application.use_cases.user.commands.roles import SetUserRole, SetUserRoleDto
 from src.application.use_cases.user.queries.plans import GetAvailablePlans
 from src.application.use_cases.user.queries.profile import GetUserDevices
+from src.core.config import AppConfig
 from src.core.constants import (
     FROM_REFERRAL_USER_ID,
     TARGET_TELEGRAM_ID,
@@ -76,7 +77,7 @@ from src.core.enums import Role
 from src.core.utils.validators import is_positive_int, parse_int
 from src.telegram.keyboards import get_contact_support_keyboard
 from src.telegram.states import DashboardUser, DashboardUsers
-from src.telegram.utils import is_double_click
+from src.telegram.utils import is_double_click, notify_reissued
 
 _USER_LIST_STATES = {
     DashboardUsers.RECENT_REGISTERED.state: DashboardUsers.RECENT_REGISTERED,
@@ -357,6 +358,9 @@ async def on_reissue_subscription(
     dialog_manager: DialogManager,
     notifier: FromDishka[Notifier],
     reissue_user_subscription: FromDishka[ReissueUserSubscription],
+    user_dao: FromDishka[UserDao],
+    subscription_dao: FromDishka[SubscriptionDao],
+    config: FromDishka[AppConfig],
 ) -> None:
     user: TelegramUserDto = dialog_manager.middleware_data[USER_KEY]
     target_user_id = dialog_manager.dialog_data[TARGET_USER_ID]
@@ -364,6 +368,11 @@ async def on_reissue_subscription(
     if is_double_click(dialog_manager, key="reissue_subscription_confirm", cooldown=10):
         await reissue_user_subscription(user, target_user_id)
         await notifier.notify_user(user, i18n_key="ntf-devices.reissued")
+        # the person's VPN has just stopped: tell them how to add the new link
+        target_user = await user_dao.get_by_id(target_user_id)
+        if target_user and target_user.id != user.id:
+            subscription = await subscription_dao.get_current(target_user.id)
+            await notify_reissued(notifier, target_user, subscription, config.bot)
         return
 
     await notifier.notify_user(user, i18n_key="ntf-common.double-click-confirm")
