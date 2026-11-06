@@ -488,10 +488,13 @@ class NotificationService(Notifier):
             return translated_markup
 
         if isinstance(reply_markup, InlineKeyboardMarkup):
-            # translate once: a second pass looks the ready texts up as keys and logs warnings
-            builder = InlineKeyboardBuilder.from_markup(reply_markup)
-            builder.row(get_close_notification_button())
-            return self._translate_keyboard_text(builder.as_markup(), locale)
+            # A new markup: the caller's one goes to every admin of an event and to every
+            # recipient of a broadcast (the keyboard builder would append to it in place).
+            # Translated once: a second pass looks the ready texts up as keys and logs warnings.
+            with_close = InlineKeyboardMarkup(
+                inline_keyboard=[*reply_markup.inline_keyboard, [get_close_notification_button()]]
+            )
+            return self._translate_keyboard_text(with_close, locale)
 
         logger.warning(
             f"Unsupported reply_markup type '{type(reply_markup).__name__}' "
